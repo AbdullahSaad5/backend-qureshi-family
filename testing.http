@@ -1,0 +1,13 @@
+## Adds a new family member who is the root of the family tree (great-grandfather)
+
+POST https://localhost:3000/api/members
+
+Content-Type: application/json
+
+{
+  "name": "Amjad Ali",
+  "relation": "Great-Grandfather",
+  "gender": "Male",
+  "dateOfBirth": "1900-01-01"
+}
+

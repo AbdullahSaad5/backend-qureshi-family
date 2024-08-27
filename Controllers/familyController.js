@@ -1,5 +1,61 @@
 const Person = require("../Models/familyMember");
+const User = require("../Models/Auth");
 const mongoose = require("mongoose");
+const bcrypt = require("bcrypt");
+
+
+const signup = async (req, res) => {
+  const { email, password } = req.body;
+  
+
+  try {
+   
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+     
+      return res.status(400).json({ message: "Email already in use" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+        
+    const newUser = new User({
+      email,
+      password: hashedPassword,
+    });
+
+    console.log("New user created: ", newUser);
+
+  
+    await newUser.save();
+    console.log("User saved successfully");
+
+    res.status(201).json({ message: "User registered successfully" });
+  } catch (error) {
+    console.error("Error during signup:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+const login = async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({ message: "Invalid email" });
+    }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid password" });
+    }
+
+
+    res.json({ message: "Logged in successfully" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
 
 const createPerson = async (req, res) => {
   const {
@@ -119,7 +175,6 @@ const getPersonById = async (req, res) => {
   try {
     console.log("Inside get person by id API");
 
-    
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ error: "Invalid ID format" });
     }
@@ -341,4 +396,6 @@ module.exports = {
   deletePerson,
   addChild,
   addSpouse,
+  signup,
+  login,
 };

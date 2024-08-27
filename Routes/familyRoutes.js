@@ -18,7 +18,12 @@ router.get("/members/:id", familyController.getPersonById);
 
 router.get("/members", familyController.getFamilyTrees);
 
-router.post("/members/:parentId/children/:childId", familyController.addChild);
+router.post("/members/:parentId/children/:childId", familyController.addChildById);
+
+router.post("/addChild",
+  familyController.addChild
+);
+
 
 router.post("/members/:personId/spouse/:spouseId", familyController.addSpouse);
 

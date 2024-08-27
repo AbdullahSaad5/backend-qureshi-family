@@ -348,7 +348,6 @@ const getFamilyTrees = async (req, res) => {
 // };
 
 
-
 const getPersonById = async (req, res) => {
   const { id } = req.params;
 
@@ -529,7 +528,7 @@ const deletePerson = async (req, res) => {
   }
 };
 
-const addChild = async (req, res) => {
+const addChildById = async (req, res) => {
   const { parentId, childId } = req.params;
 
   try {
@@ -545,6 +544,189 @@ const addChild = async (req, res) => {
 
     res.json({ message: "Child added successfully" });
   } catch (error) {
+    res.status(500).json({
+      error: "Error adding child",
+      details: error.message,
+    });
+  }
+};
+
+const addChild = async (req, res) => {
+  const {
+    parentName,
+    parentDateOfBirth,
+    parentId, 
+    childName,
+    childGender,
+    childDateOfBirth,
+  } = req.body;
+
+  try {
+    
+    const parents = await Person.find({ name: parentName });
+
+    
+    if (parents.length > 1) {
+      if (parentDateOfBirth) {
+        
+        const filteredParents = parents.filter(
+          (parent) =>
+            parent.dateOfBirth.toISOString().split("T")[0] ===
+            new Date(parentDateOfBirth).toISOString().split("T")[0]
+        );
+
+        if (filteredParents.length === 1) {
+          const parent = filteredParents[0];
+
+         
+          const newChild = new Person({
+            name: childName,
+            gender: childGender,
+            dateOfBirth: new Date(childDateOfBirth),
+            parents: [parent._id],
+          });
+
+          
+          const savedChild = await newChild.save();
+
+         
+          await Person.findByIdAndUpdate(parent._id, {
+            $addToSet: { children: savedChild._id },
+          });
+
+          
+          return res.json({
+            message: "Child added successfully",
+            child: savedChild,
+            parent: {
+              name: parent.name,
+              dateOfBirth: parent.dateOfBirth,
+              gender: parent.gender,
+            },
+          });
+        } else if (filteredParents.length > 1) {
+          
+          if (parentId) {
+            const selectedParent = filteredParents.find(
+              (parent) => parent._id.toString() === parentId
+            );
+
+            if (selectedParent) {
+             
+              const newChild = new Person({
+                name: childName,
+                gender: childGender,
+                dateOfBirth: new Date(childDateOfBirth),
+                parents: [selectedParent._id],
+              });
+
+             
+              const savedChild = await newChild.save();
+
+             
+              await Person.findByIdAndUpdate(selectedParent._id, {
+                $addToSet: { children: savedChild._id },
+              });
+
+              // Respond with success message and all relevant data
+              return res.json({
+                message: "Child added successfully",
+                child: savedChild,
+                parent: {
+                  name: selectedParent.name,
+                  dateOfBirth: selectedParent.dateOfBirth,
+                  gender: selectedParent.gender,
+                },
+              });
+            } else {
+              return res.status(400).json({
+                error: "Provided parentId does not match any filtered parents",
+                parents: filteredParents.map((parent) => ({
+                  _id: parent._id,
+                  name: parent.name,
+                  dateOfBirth: parent.dateOfBirth,
+                  gender: parent.gender,
+                })),
+              });
+            }
+          } else {
+            // If no parentId is provided and multiple parents are found
+            return res.status(400).json({
+              error:
+                "Multiple parents found with the same name and date of birth. Please provide a parentId.",
+              parents: filteredParents.map((parent) => ({
+                _id: parent._id,
+                name: parent.name,
+                dateOfBirth: parent.dateOfBirth,
+                gender: parent.gender,
+              })),
+            });
+          }
+        }
+      } else {
+        // If no date of birth is provided and multiple parents are found
+        return res.status(400).json({
+          error:
+            "Multiple parents found with the same name. Please provide a parentDateOfBirth.",
+          parents: parents.map((parent) => ({
+            _id: parent._id,
+            name: parent.name,
+            dateOfBirth: parent.dateOfBirth,
+            gender: parent.gender,
+          })),
+        });
+      }
+    }
+
+    // If exactly one parent is found
+    if (parents.length === 1) {
+      const parent = parents[0];
+
+      // If parentDateOfBirth is provided, check for a match
+      if (parentDateOfBirth) {
+        if (
+          parent.dateOfBirth.toISOString().split("T")[0] !==
+          new Date(parentDateOfBirth).toISOString().split("T")[0]
+        ) {
+          return res.status(400).json({
+            error: "Parent found, but date of birth does not match",
+            parentDateOfBirth: parent.dateOfBirth.toISOString().split("T")[0],
+          });
+        }
+      }
+
+      // Create a new child document
+      const newChild = new Person({
+        name: childName,
+        gender: childGender,
+        dateOfBirth: new Date(childDateOfBirth),
+        parents: [parent._id],
+      });
+
+      // Save the new child document
+      const savedChild = await newChild.save();
+
+      // Update the parent's document to include the new child
+      await Person.findByIdAndUpdate(parent._id, {
+        $addToSet: { children: savedChild._id },
+      });
+
+      // Respond with success message and all relevant data
+      return res.json({
+        message: "Child added successfully",
+        child: savedChild,
+        parent: {
+          name: parent.name,
+          dateOfBirth: parent.dateOfBirth,
+          gender: parent.gender,
+        },
+      });
+    }
+
+    // If no parent is found
+    return res.status(404).json({ error: "Parent not found" });
+  } catch (error) {
+    console.error("Error adding child:", error);
     res.status(500).json({
       error: "Error adding child",
       details: error.message,
@@ -638,4 +820,5 @@ module.exports = {
   signup,
   searchPerson,
   login,
+  addChildById,
 };

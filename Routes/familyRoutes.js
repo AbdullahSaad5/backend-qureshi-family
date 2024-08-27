@@ -16,10 +16,13 @@ router.delete("/members/:id", familyController.deletePerson);
 
 router.get("/members/:id", familyController.getPersonById);
 
-router.get("/members", familyController.getAllPeople);
+router.get("/members", familyController.getFamilyTrees);
 
 router.post("/members/:parentId/children/:childId", familyController.addChild);
 
 router.post("/members/:personId/spouse/:spouseId", familyController.addSpouse);
+
+router.get("/search", familyController.searchPerson);
+
 
 module.exports = router;

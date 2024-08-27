@@ -4,14 +4,14 @@ const bodyParser = require("body-parser");
 const familyRoutes = require("./Routes/familyRoutes");
 const app = express();
 const connectDB  =  require("./Config/db");
-
+const cors = require("cors");
 
 // Connect to the database
 connectDB();
 
 // Middleware
 app.use(bodyParser.json());
-
+app.use(cors()); 
 
 // Routes
 app.use("/api", familyRoutes);

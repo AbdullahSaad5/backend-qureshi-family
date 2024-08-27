@@ -151,23 +151,203 @@ const createPerson = async (req, res) => {
   }
 };
 
-const getAllPeople = async (req, res) => {
+const buildNodeObject = (member) => {
+  return {
+    key: member._id.toString(),
+    name: member.name,
+    title: member.gender,
+    parent: member.parents.length > 0 ? member.parents[0]._id.toString() : null, // Set parent if available
+    spouse:
+      member.spouseIds.length > 0
+        ? member.spouseIds.map((spouse) => ({
+            key: spouse._id.toString(),
+            name: spouse.name,
+            gender: spouse.gender,
+            dateOfBirth: spouse.dateOfBirth,
+          }))
+        : null,
+  };
+};
+
+const getFamilyTrees = async (req, res) => {
   try {
-    const people = await Person.find()
+    const allPersons = await Person.find({})
       .populate("parents")
       .populate("children")
-      .populate("spouse")
+      .populate("spouseIds")
       .populate("siblings")
       .populate("stepParents")
       .populate("stepChildren")
       .populate("halfSiblings");
-    res.json(people);
+
+    const nodeDataArray = [];
+    const seenIds = new Set();
+
+    const processFamilyMember = (member) => {
+      if (!seenIds.has(member._id.toString())) {
+        nodeDataArray.push(buildNodeObject(member));
+        seenIds.add(member._id.toString());
+
+        // Process children recursively
+        member.children.forEach((child) => {
+          processFamilyMember(child);
+        });
+
+        // Process spouse relationships
+        member.spouseIds.forEach((spouseId) => {
+          const spouse = allPersons.find(
+            (p) => p._id.toString() === spouseId._id.toString()
+          );
+          if (spouse) {
+            processFamilyMember(spouse);
+          }
+        });
+
+        // Process step-parents
+        member.stepParents.forEach((stepParent) => {
+          processFamilyMember(stepParent);
+        });
+
+        // Process half-siblings
+        member.halfSiblings.forEach((halfSibling) => {
+          processFamilyMember(halfSibling);
+        });
+      }
+    };
+
+    // Start processing from the root (those without parents)
+    allPersons.forEach((person) => {
+      if (!seenIds.has(person._id.toString())) {
+        processFamilyMember(person);
+      }
+    });
+
+    const response = {
+      class: "go.TreeModel",
+      nodeDataArray: nodeDataArray,
+    };
+
+    return res.status(200).json(response);
   } catch (error) {
-    res
+    console.error("Error fetching family trees:", error);
+    return res
       .status(500)
-      .json({ error: "Error fetching people", details: error.message });
+      .json({ message: "An error occurred while fetching the family trees." });
   }
 };
+
+
+
+// const buildMemberObject = (member) => {
+//   return {
+//     _id: member._id,
+//     name: member.name,
+//     gender: member.gender,
+//     dateOfBirth: member.dateOfBirth,
+//     parents: member.parents.map((parent) => parent._id), 
+//     children: member.children.map((child) => ({
+//       _id: child._id,
+//       name: child.name,
+//       gender: child.gender,
+//       dateOfBirth: child.dateOfBirth,
+//       parents: child.parents.map((parent) => parent._id),
+//       children: child.children.map((grandChild) => grandChild._id), 
+//       siblings: [], 
+//       stepParents: [], 
+//       stepChildren: [], 
+//       halfSiblings: [], 
+//       spouseIds: child.spouseIds.map((spouse) => spouse._id),
+//       late: child.late,
+//       __v: child.__v,
+//     })),
+//     siblings: [], 
+//     stepParents: [], 
+//     stepChildren: [], 
+//     halfSiblings: [], 
+//     spouseIds: member.spouseIds.map((spouse) => spouse._id),
+//     late: member.late,
+//     __v: member.__v,
+//   };
+// };
+
+
+
+// const getFamilyTrees = async (req, res) => {
+//   try {
+//     // Step 1: Fetch all persons
+//     const allPersons = await Person.find({}).populate("children");
+
+//     // Step 2: Collect all child IDs
+//     const childIds = new Set();
+//     allPersons.forEach((person) => {
+//       person.children.forEach((child) => {
+//         childIds.add(child._id.toString());
+//       });
+//     });
+
+//     // Step 3: Filter male parents who are not children of any other person
+//     const maleParentIds = allPersons
+//       .filter(
+//         (person) =>
+//           person.gender === "male" && !childIds.has(person._id.toString())
+//       )
+//       .map((maleParent) => maleParent._id);
+
+//     if (maleParentIds.length === 0) {
+//       return res
+//         .status(404)
+//         .json({ message: "No eligible male parents found." });
+//     }
+
+//     // Step 4: Build the family trees for each eligible male parent
+//     const familyTrees = [];
+
+//     for (const maleParentId of maleParentIds) {
+//       // Fetch the root family member for this male parent
+//       const rootMember = await Person.findOne({ _id: maleParentId })
+//         .populate("children")
+//         .populate("spouseIds");
+
+//       if (!rootMember) {
+//         continue; // If no root member found, skip to the next male parent
+//       }
+
+//       // Build the root member object
+//       const rootObject = buildMemberObject(rootMember);
+
+//       // Fetch all family members related to this family
+//       const allFamilyMembers = await Person.find({
+//         $or: [
+//           { parents: rootMember._id },
+//           { children: { $in: rootMember.children.map((child) => child._id) } },
+//         ],
+//       })
+//         .populate("parents")
+//         .populate("children")
+//         .populate("spouseIds");
+
+//       // Build the 'members' array
+//       const members = allFamilyMembers.map((member) =>
+//         buildMemberObject(member)
+//       );
+
+//       // Add the constructed family tree to the result array
+//       familyTrees.push({
+//         root: rootObject,
+//         members: members,
+//       });
+//     }
+
+//     return res.status(200).json(familyTrees);
+//   } catch (error) {
+//     console.error("Error fetching family trees:", error);
+//     return res
+//       .status(500)
+//       .json({ message: "An error occurred while fetching the family trees." });
+//   }
+// };
+
+
 
 const getPersonById = async (req, res) => {
   const { id } = req.params;
@@ -376,9 +556,17 @@ const addSpouse = async (req, res) => {
   const { personId, spouseId } = req.params;
 
   try {
-    // Update both persons to reference each other as spouses
-    await Person.findByIdAndUpdate(personId, { spouse: spouseId });
-    await Person.findByIdAndUpdate(spouseId, { spouse: personId });
+    
+    await Person.findByIdAndUpdate(personId, {
+      $push: { spouseIds: spouseId },
+      spouse: spouseId,
+    });
+
+    
+    await Person.findByIdAndUpdate(spouseId, {
+      $push: { spouseIds: personId },
+      spouse: personId,
+    });
 
     res.json({ message: "Spouse added successfully" });
   } catch (error) {
@@ -388,14 +576,66 @@ const addSpouse = async (req, res) => {
   }
 };
 
+const searchPerson = async (req, res) => {
+  const { name, dateOfBirth } = req.body;
+
+  console.log(name, dateOfBirth);
+
+  if (!name) {
+    return res
+      .status(400)
+      .json({ error: "Name is required to perform search." });
+  }
+
+  try {
+    
+    const searchCriteria = { name: new RegExp(name, "i") };
+
+    if (dateOfBirth) {
+      searchCriteria.dateOfBirth = new Date(dateOfBirth);
+    }
+
+    console.log(searchCriteria);
+
+    const people = await Person.find(searchCriteria)
+      .populate(
+        "parents children spouse siblings stepParents stepChildren halfSiblings"
+      )
+      .exec();
+
+    if (people.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No person found with the provided criteria." });
+    }
+
+    if (people.length > 1) {
+      return res
+        .status(200)
+        .json({ message: "Multiple people found.", data: people });
+    }
+
+    const person = people[0];
+    const familyTree = await buildNodeObject(person);
+
+    res.status(200).json({ message: "Person found.", data: familyTree });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: "Error searching for person.", details: error.message });
+  }
+};
+
+
 module.exports = {
   createPerson,
-  getAllPeople,
+  getFamilyTrees,
   getPersonById,
   updatePerson,
   deletePerson,
   addChild,
   addSpouse,
   signup,
+  searchPerson,
   login,
 };

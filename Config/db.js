@@ -1,10 +1,12 @@
-// const dbURI = process.env.DB_URL; 
+// const dbURI = "mongodb://localhost:27017/shajra";
 
 const mongoose = require("mongoose");
 
-const dbURI = "mongodb://localhost:27017/shajra";
 
 const connectDB = async () => {
+
+  const dbURI = process.env.DB_URL;
+   
   try {
     await mongoose.connect(dbURI, {
       useNewUrlParser: true,

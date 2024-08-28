@@ -8,7 +8,7 @@ const personSchema = new Schema({
   },
   gender: {
     type: String,
-    enum: ["male", "female", "other"],
+    enum: ["male", "female"],
     required: true,
   },
   dateOfBirth: {

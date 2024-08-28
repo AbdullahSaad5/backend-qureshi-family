@@ -1,22 +1,32 @@
 const express = require("express");
-const mongoose = require("mongoose");
+require("dotenv").config();
 const bodyParser = require("body-parser");
 const familyRoutes = require("./Routes/familyRoutes");
 const app = express();
-const connectDB  =  require("./Config/db");
+const connectDB = require("./Config/db");
 const cors = require("cors");
+const generateDummyDataa = require("./helpers/generateDummyDataa");
 
-// Connect to the database
-connectDB();
+const startServer = async () => {
+  try {
+    await connectDB(); // Ensure the connection is established
 
-// Middleware
-app.use(bodyParser.json());
-app.use(cors()); 
+    app.use(bodyParser.json());
+    app.use(cors());
 
-// Routes
-app.use("/api", familyRoutes);
+    app.use("/api", familyRoutes);
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+    // Start server
+    const PORT = process.env.PORT || 8080;
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+    });
+
+    // Generate dummy data
+    // await generateDummyDataa();
+  } catch (error) {
+    console.error("Error starting server:", error.message);
+  }
+};
+
+startServer();

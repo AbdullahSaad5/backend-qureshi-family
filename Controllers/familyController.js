@@ -2,22 +2,19 @@ const Person = require("../Models/familyMember");
 const User = require("../Models/Auth");
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
-
+const { performance } = require("perf_hooks"); // Import performance for measuring response time
 
 const signup = async (req, res) => {
   const { email, password } = req.body;
-  
 
   try {
-   
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-     
       return res.status(400).json({ message: "Email already in use" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-        
+
     const newUser = new User({
       email,
       password: hashedPassword,
@@ -25,7 +22,6 @@ const signup = async (req, res) => {
 
     console.log("New user created: ", newUser);
 
-  
     await newUser.save();
     console.log("User saved successfully");
 
@@ -35,7 +31,6 @@ const signup = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-
 
 const login = async (req, res) => {
   const { email, password } = req.body;
@@ -48,7 +43,6 @@ const login = async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid password" });
     }
-
 
     res.json({ message: "Logged in successfully" });
   } catch (error) {
@@ -151,83 +145,56 @@ const createPerson = async (req, res) => {
   }
 };
 
-const buildNodeObject = (member) => {
-  return {
-    key: member._id.toString(),
-    name: member.name,
-    title: member.gender,
-    parent: member.parents.length > 0 ? member.parents[0]._id.toString() : null, // Set parent if available
-    spouse:
-      member.spouseIds.length > 0
-        ? member.spouseIds.map((spouse) => ({
-            key: spouse._id.toString(),
-            name: spouse.name,
-            gender: spouse.gender,
-            dateOfBirth: spouse.dateOfBirth,
-          }))
-        : null,
+const transformFamilyData = (members) => {
+  const extractYear = (dateString) => {
+    const date = new Date(dateString);
+    return date.getFullYear();
   };
+
+  const buildNodeObject = (member) => {
+    return {
+      _id: member._id.toString(),
+      name: member.name,
+      gender: member.gender,
+      parent:
+        member.parents && member.parents.length > 0
+          ? member.parents[0]._id.toString()
+          : null,
+      born: extractYear(member.dateOfBirth),
+      death: extractYear(member.dateOfDeath),
+    };
+  };
+
+  // Convert the array of members to the desired format
+  const transformedData = members.map(buildNodeObject);
+
+  return transformedData;
 };
 
 const getFamilyTrees = async (req, res) => {
+  const startTime = performance.now(); // Start timing
+
   try {
     const allPersons = await Person.find({})
       .populate("parents")
       .populate("children")
-      .populate("spouseIds")
       .populate("siblings")
       .populate("stepParents")
       .populate("stepChildren")
       .populate("halfSiblings");
 
-    const nodeDataArray = [];
-    const seenIds = new Set();
-
-    const processFamilyMember = (member) => {
-      if (!seenIds.has(member._id.toString())) {
-        nodeDataArray.push(buildNodeObject(member));
-        seenIds.add(member._id.toString());
-
-        // Process children recursively
-        member.children.forEach((child) => {
-          processFamilyMember(child);
-        });
-
-        // Process spouse relationships
-        member.spouseIds.forEach((spouseId) => {
-          const spouse = allPersons.find(
-            (p) => p._id.toString() === spouseId._id.toString()
-          );
-          if (spouse) {
-            processFamilyMember(spouse);
-          }
-        });
-
-        // Process step-parents
-        member.stepParents.forEach((stepParent) => {
-          processFamilyMember(stepParent);
-        });
-
-        // Process half-siblings
-        member.halfSiblings.forEach((halfSibling) => {
-          processFamilyMember(halfSibling);
-        });
-      }
-    };
-
-    // Start processing from the root (those without parents)
-    allPersons.forEach((person) => {
-      if (!seenIds.has(person._id.toString())) {
-        processFamilyMember(person);
-      }
-    });
+    const nodeDataArray = transformFamilyData(allPersons);
 
     const response = {
-      class: "go.TreeModel",
-      nodeDataArray: nodeDataArray,
+      familyTreeData: nodeDataArray,
     };
 
-    return res.status(200).json(response);
+    const endTime = performance.now(); // End timing
+    const responseTime = (endTime - startTime).toFixed(2); // Calculate response time
+
+    return res
+      .status(200)
+      .json({ ...response, responseTime: `${responseTime}ms` });
   } catch (error) {
     console.error("Error fetching family trees:", error);
     return res
@@ -236,109 +203,134 @@ const getFamilyTrees = async (req, res) => {
   }
 };
 
-
-
-// const buildMemberObject = (member) => {
+// const buildNodeObject = (member) => {
 //   return {
-//     _id: member._id,
+//     key: member._id.toString(),
 //     name: member.name,
-//     gender: member.gender,
-//     dateOfBirth: member.dateOfBirth,
-//     parents: member.parents.map((parent) => parent._id), 
-//     children: member.children.map((child) => ({
-//       _id: child._id,
-//       name: child.name,
-//       gender: child.gender,
-//       dateOfBirth: child.dateOfBirth,
-//       parents: child.parents.map((parent) => parent._id),
-//       children: child.children.map((grandChild) => grandChild._id), 
-//       siblings: [], 
-//       stepParents: [], 
-//       stepChildren: [], 
-//       halfSiblings: [], 
-//       spouseIds: child.spouseIds.map((spouse) => spouse._id),
-//       late: child.late,
-//       __v: child.__v,
-//     })),
-//     siblings: [], 
-//     stepParents: [], 
-//     stepChildren: [], 
-//     halfSiblings: [], 
-//     spouseIds: member.spouseIds.map((spouse) => spouse._id),
-//     late: member.late,
-//     __v: member.__v,
+//     title: member.gender,
+//     parent: member.parents.length > 0 ? member.parents[0]._id.toString() : null, // Set parent if available
+//     spouse:
+//       member.spouseIds.length > 0
+//         ? member.spouseIds.map((spouse) => ({
+//             key: spouse._id.toString(),
+//             name: spouse.name,
+//             gender: spouse.gender,
+//             dateOfBirth: spouse.dateOfBirth,
+//           }))
+//         : null,
 //   };
 // };
 
-
-
 // const getFamilyTrees = async (req, res) => {
-//   try {
-//     // Step 1: Fetch all persons
-//     const allPersons = await Person.find({}).populate("children");
+//   const startTime = performance.now(); // Start timing
 
-//     // Step 2: Collect all child IDs
-//     const childIds = new Set();
+//   try {
+//     const allPersons = await Person.find({})
+//       .populate("parents")
+//       .populate("children")
+//       .populate("spouseIds")
+//       .populate("siblings")
+//       .populate("stepParents")
+//       .populate("stepChildren")
+//       .populate("halfSiblings");
+
+//     const nodeDataArray = [];
+//     const seenIds = new Set();
+
+//     const buildNodeObject = (member) => {
+//       // Ensure the member and its properties are defined
+//       if (!member) return {};
+
+//       return {
+//         id: member._id.toString(),
+//         name: member.name,
+//         gender: member.gender,
+//         dateOfBirth: member.dateOfBirth,
+//         dateOfDeath: member.dateOfDeath,
+//         biography: member.biography,
+//         late: member.late,
+//         parents: member.parents
+//           ? member.parents.map((p) => p._id.toString())
+//           : [],
+//         children: member.children
+//           ? member.children.map((c) => c._id.toString())
+//           : [],
+//         spouseIds: member.spouseIds
+//           ? member.spouseIds.map((s) => s._id.toString())
+//           : [],
+//         siblings: member.siblings
+//           ? member.siblings.map((s) => s._id.toString())
+//           : [],
+//         stepParents: member.stepParents
+//           ? member.stepParents.map((sp) => sp._id.toString())
+//           : [],
+//         stepChildren: member.stepChildren
+//           ? member.stepChildren.map((sc) => sc._id.toString())
+//           : [],
+//         halfSiblings: member.halfSiblings
+//           ? member.halfSiblings.map((hs) => hs._id.toString())
+//           : [],
+//       };
+//     };
+
+//     const processFamilyMember = (member) => {
+//       if (!seenIds.has(member._id.toString())) {
+//         nodeDataArray.push(buildNodeObject(member));
+//         seenIds.add(member._id.toString());
+
+//         // Process children recursively
+//         if (Array.isArray(member.children)) {
+//           member.children.forEach((child) => {
+//             processFamilyMember(child);
+//           });
+//         }
+
+//         // Process spouse relationships
+//         if (Array.isArray(member.spouseIds)) {
+//           member.spouseIds.forEach((spouseId) => {
+//             const spouse = allPersons.find(
+//               (p) => p._id.toString() === spouseId._id.toString()
+//             );
+//             if (spouse) {
+//               processFamilyMember(spouse);
+//             }
+//           });
+//         }
+
+//         // Process step-parents
+//         if (Array.isArray(member.stepParents)) {
+//           member.stepParents.forEach((stepParent) => {
+//             processFamilyMember(stepParent);
+//           });
+//         }
+
+//         // Process half-siblings
+//         if (Array.isArray(member.halfSiblings)) {
+//           member.halfSiblings.forEach((halfSibling) => {
+//             processFamilyMember(halfSibling);
+//           });
+//         }
+//       }
+//     };
+
+//     // Start processing from the root (those without parents)
 //     allPersons.forEach((person) => {
-//       person.children.forEach((child) => {
-//         childIds.add(child._id.toString());
-//       });
+//       if (!seenIds.has(person._id.toString())) {
+//         processFamilyMember(person);
+//       }
 //     });
 
-//     // Step 3: Filter male parents who are not children of any other person
-//     const maleParentIds = allPersons
-//       .filter(
-//         (person) =>
-//           person.gender === "male" && !childIds.has(person._id.toString())
-//       )
-//       .map((maleParent) => maleParent._id);
+//     const response = {
+//       class: "go.TreeModel",
+//       nodeDataArray: nodeDataArray,
+//     };
 
-//     if (maleParentIds.length === 0) {
-//       return res
-//         .status(404)
-//         .json({ message: "No eligible male parents found." });
-//     }
+//     const endTime = performance.now(); // End timing
+//     const responseTime = (endTime - startTime).toFixed(2); // Calculate response time
 
-//     // Step 4: Build the family trees for each eligible male parent
-//     const familyTrees = [];
-
-//     for (const maleParentId of maleParentIds) {
-//       // Fetch the root family member for this male parent
-//       const rootMember = await Person.findOne({ _id: maleParentId })
-//         .populate("children")
-//         .populate("spouseIds");
-
-//       if (!rootMember) {
-//         continue; // If no root member found, skip to the next male parent
-//       }
-
-//       // Build the root member object
-//       const rootObject = buildMemberObject(rootMember);
-
-//       // Fetch all family members related to this family
-//       const allFamilyMembers = await Person.find({
-//         $or: [
-//           { parents: rootMember._id },
-//           { children: { $in: rootMember.children.map((child) => child._id) } },
-//         ],
-//       })
-//         .populate("parents")
-//         .populate("children")
-//         .populate("spouseIds");
-
-//       // Build the 'members' array
-//       const members = allFamilyMembers.map((member) =>
-//         buildMemberObject(member)
-//       );
-
-//       // Add the constructed family tree to the result array
-//       familyTrees.push({
-//         root: rootObject,
-//         members: members,
-//       });
-//     }
-
-//     return res.status(200).json(familyTrees);
+//     return res
+//       .status(200)
+//       .json({ ...response, responseTime: `${responseTime}ms` });
 //   } catch (error) {
 //     console.error("Error fetching family trees:", error);
 //     return res
@@ -347,6 +339,72 @@ const getFamilyTrees = async (req, res) => {
 //   }
 // };
 
+// const getFamilyTrees = async (req, res) => {
+//   try {
+//     const allPersons = await Person.find({})
+//       .populate("parents")
+//       .populate("children")
+//       .populate("spouseIds")
+//       .populate("siblings")
+//       .populate("stepParents")
+//       .populate("stepChildren")
+//       .populate("halfSiblings");
+
+//     const nodeDataArray = [];
+//     const seenIds = new Set();
+
+//     const processFamilyMember = (member) => {
+//       if (!seenIds.has(member._id.toString())) {
+//         nodeDataArray.push(buildNodeObject(member));
+//         seenIds.add(member._id.toString());
+
+//         // Process children recursively
+//         member.children.forEach((child) => {
+//           processFamilyMember(child);
+//         });
+
+//         // Process spouse relationships
+//         member.spouseIds.forEach((spouseId) => {
+//           const spouse = allPersons.find(
+//             (p) => p._id.toString() === spouseId._id.toString()
+//           );
+//           if (spouse) {
+//             processFamilyMember(spouse);
+//           }
+//         });
+
+//         // Process step-parents
+//         member.stepParents.forEach((stepParent) => {
+//           processFamilyMember(stepParent);
+//         });
+
+//         // Process half-siblings
+//         member.halfSiblings.forEach((halfSibling) => {
+//           processFamilyMember(halfSibling);
+//         });
+//       }
+//     };
+
+//     // Start processing from the root (those without parents)
+//     allPersons.forEach((person) => {
+//       if (!seenIds.has(person._id.toString())) {
+//         processFamilyMember(person);
+//       }
+//     });
+
+//     const response = {
+//       class: "go.TreeModel",
+//       nodeDataArray: nodeDataArray,
+//     };
+
+//     return res.status(200).json(response);
+//   } catch (error) {
+//     console.error("Error fetching family trees:", error);
+//     return res
+//       .status(500)
+//       .json({ message: "An error occurred while fetching the family trees." });
+//   }
+// };
 
 const getPersonById = async (req, res) => {
   const { id } = req.params;
@@ -555,20 +613,17 @@ const addChild = async (req, res) => {
   const {
     parentName,
     parentDateOfBirth,
-    parentId, 
+    parentId,
     childName,
     childGender,
     childDateOfBirth,
   } = req.body;
 
   try {
-    
     const parents = await Person.find({ name: parentName });
 
-    
     if (parents.length > 1) {
       if (parentDateOfBirth) {
-        
         const filteredParents = parents.filter(
           (parent) =>
             parent.dateOfBirth.toISOString().split("T")[0] ===
@@ -578,7 +633,6 @@ const addChild = async (req, res) => {
         if (filteredParents.length === 1) {
           const parent = filteredParents[0];
 
-         
           const newChild = new Person({
             name: childName,
             gender: childGender,
@@ -586,15 +640,12 @@ const addChild = async (req, res) => {
             parents: [parent._id],
           });
 
-          
           const savedChild = await newChild.save();
 
-         
           await Person.findByIdAndUpdate(parent._id, {
             $addToSet: { children: savedChild._id },
           });
 
-          
           return res.json({
             message: "Child added successfully",
             child: savedChild,
@@ -605,14 +656,12 @@ const addChild = async (req, res) => {
             },
           });
         } else if (filteredParents.length > 1) {
-          
           if (parentId) {
             const selectedParent = filteredParents.find(
               (parent) => parent._id.toString() === parentId
             );
 
             if (selectedParent) {
-             
               const newChild = new Person({
                 name: childName,
                 gender: childGender,
@@ -620,10 +669,8 @@ const addChild = async (req, res) => {
                 parents: [selectedParent._id],
               });
 
-             
               const savedChild = await newChild.save();
 
-             
               await Person.findByIdAndUpdate(selectedParent._id, {
                 $addToSet: { children: savedChild._id },
               });
@@ -738,13 +785,11 @@ const addSpouse = async (req, res) => {
   const { personId, spouseId } = req.params;
 
   try {
-    
     await Person.findByIdAndUpdate(personId, {
       $push: { spouseIds: spouseId },
       spouse: spouseId,
     });
 
-    
     await Person.findByIdAndUpdate(spouseId, {
       $push: { spouseIds: personId },
       spouse: personId,
@@ -770,7 +815,6 @@ const searchPerson = async (req, res) => {
   }
 
   try {
-    
     const searchCriteria = { name: new RegExp(name, "i") };
 
     if (dateOfBirth) {
@@ -807,7 +851,6 @@ const searchPerson = async (req, res) => {
       .json({ error: "Error searching for person.", details: error.message });
   }
 };
-
 
 module.exports = {
   createPerson,

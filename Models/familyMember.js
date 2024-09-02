@@ -17,6 +17,11 @@ const personSchema = new Schema({
   dateOfDeath: {
     type: Date,
   },
+  status: {
+    type: String,
+    enum: ["pending", "approved", "rejected"],
+    default: "pending",
+  },
 
   parents: [
     {

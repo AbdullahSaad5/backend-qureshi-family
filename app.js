@@ -5,7 +5,7 @@ const familyRoutes = require("./Routes/familyRoutes");
 const app = express();
 const connectDB = require("./Config/db");
 const cors = require("cors");
-const generateDummyDataa = require("./helpers/generateDummyDataa");
+// const generateDummyDataa = require("./helpers/generateDummyDataa");
 
 const startServer = async () => {
   try {

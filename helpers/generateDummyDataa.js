@@ -21,6 +21,7 @@ const createPerson = async (parents = []) => {
     biography: faker.lorem.paragraph(),
     late: Math.random() > 0.5,
     parents,
+    status: "approved", // Ensure status is set to "approved"
   };
   return await Person.create(person);
 };
@@ -65,7 +66,7 @@ const createFamilyTree = async (
   return families;
 };
 
-const generateDummyDataa = async () => {
+const generateDummyData = async () => {
   try {
     console.log("Starting dummy data generation...");
 
@@ -89,4 +90,4 @@ const generateDummyDataa = async () => {
   }
 };
 
-module.exports = generateDummyDataa;
+module.exports = generateDummyData;

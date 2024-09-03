@@ -3,6 +3,8 @@ const User = require("../Models/Auth");
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 const { performance } = require("perf_hooks");
+const Counter = require("../Models/TasbeehCounter");
+
 
 const signup = async (req, res) => {
   const { email, password } = req.body;
@@ -156,10 +158,7 @@ const transformFamilyData = (members) => {
       _id: member._id.toString(),
       name: member.name,
       gender: member.gender,
-      parent:
-        member.parents && member.parents.length > 0
-          ? member.parents[0]._id.toString()
-          : null,
+      parents: member.parents.map((parent) => parent._id.toString()), // Ensure this is an array
       born: extractYear(member.dateOfBirth),
       death: extractYear(member.dateOfDeath),
     };
@@ -175,16 +174,19 @@ const getFamilyTrees = async (req, res) => {
   const startTime = performance.now(); // Start timing
 
   try {
+    // Fetch all persons with the necessary relationships populated
     const allPersons = await Person.find({ status: "approved" })
-      .populate("parents")
+      .populate("parents") // Populate parents
       .populate("children")
       .populate("siblings")
       .populate("stepParents")
       .populate("stepChildren")
       .populate("halfSiblings");
 
+    // Transform the family data
     const nodeDataArray = transformFamilyData(allPersons);
 
+    // Prepare response with transformed data
     const response = {
       familyTreeData: nodeDataArray,
     };
@@ -202,6 +204,7 @@ const getFamilyTrees = async (req, res) => {
       .json({ message: "An error occurred while fetching the family trees." });
   }
 };
+
 
 // const buildNodeObject = (member) => {
 //   return {
@@ -642,13 +645,12 @@ const addChild = async (req, res) => {
         if (filteredParents.length === 1) {
           const parent = filteredParents[0];
 
-
           const newChild = new Person({
             name: childName.trim(),
             gender: childGender,
             dateOfBirth: new Date(childDateOfBirth),
             parents: [parent._id],
-            status: isAdmin && "approved"
+            status: isAdmin && "approved",
           });
 
           const savedChild = await newChild.save();
@@ -936,13 +938,8 @@ const handleChildCreation = async (req, res, parent) => {
 };
 
 const childAdditionRequest = async (req, res) => {
-  const {
-    approve,
-    parentId,
-    childName,
-    childGender,
-    childDateOfBirth,
-  } = req.body;
+  const { approve, parentId, childName, childGender, childDateOfBirth } =
+    req.body;
 
   try {
     if (approve) {
@@ -1097,6 +1094,56 @@ const searchPerson = async (req, res) => {
   }
 };
 
+const getCounter = async (req, res) => {
+  try {
+    // Fetch the counter value from the database
+    let counter = await Counter.findOne();
+
+    if (!counter) {
+      // Initialize the counter if it doesn't exist
+      counter = new Counter({ count: 0 });
+      await counter.save();
+    }
+
+    // Respond with the current counter value
+    res.status(200).json({ count: counter.count });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+
+const postCounter = async (req, res) => {
+  try {
+    // Fetch the counter value from the database
+    let counter = await Counter.findOne();
+
+    if (!counter) {
+      // Initialize the counter if it doesn't exist
+      counter = new Counter({ count: 0 });
+    }
+
+    // Get the number from the request parameters
+    const incrementValue = parseInt(req.params.no, 10);
+
+    if (isNaN(incrementValue) || incrementValue <= 0) {
+      return res.status(400).json({ message: "Invalid increment value" });
+    }
+
+    // Increment the counter value by the number from the parameters
+    counter.count += incrementValue;
+    await counter.save();
+
+    // Respond with the updated counter value
+    res.status(200).json({ count: counter.count });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+
 module.exports = {
   createPerson,
   getFamilyTrees,
@@ -1111,4 +1158,6 @@ module.exports = {
   addChildById,
   childAdditionRequest,
   getPendingChildAdditionRequests,
+  getCounter,
+  postCounter,
 };

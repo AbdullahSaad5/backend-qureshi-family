@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const familyController = require("../Controllers/familyController");
 
+
 router.post("/signup", familyController.signup);
 
 router.post("/login", familyController.login);
@@ -17,6 +18,12 @@ router.get("/members/:id", familyController.getPersonById);
 router.get("/members", familyController.getFamilyTrees);
 
 router.get("/getPendingReq", familyController.getPendingChildAdditionRequests);
+
+router.get("/counter", familyController.getCounter);
+
+router.post("/counter/:no", familyController.postCounter);
+
+
 
 
 router.post(

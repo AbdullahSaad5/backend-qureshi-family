@@ -1,142 +1,164 @@
-const mongoose = require("mongoose");
-const { faker } = require("@faker-js/faker");
-const Person = require("../Models/familyMember");
+// const mongoose = require("mongoose");
+// const { faker } = require("@faker-js/faker");
+// const Person = require("../Models/familyMember");
 
-// Function to generate a random date
-const getRandomDate = (startYear, endYear) => {
-  const start = new Date(startYear, 0, 1);
-  const end = new Date(endYear, 11, 31);
-  return new Date(
-    start.getTime() + Math.random() * (end.getTime() - start.getTime())
-  );
-};
+// // Function to generate a random date
+// const getRandomDate = (startYear, endYear) => {
+//   const start = new Date(startYear, 0, 1);
+//   const end = new Date(endYear, 11, 31);
+//   return new Date(
+//     start.getTime() + Math.random() * (end.getTime() - start.getTime())
+//   );
+// };
 
-// Function to create a single person
-const createPerson = async (
-  name,
-  gender,
-  dateOfBirth,
-  dateOfDeath,
-  biography,
-  late,
-  parents = []
-) => {
-  const person = new Person({
-    name,
-    gender,
-    dateOfBirth,
-    dateOfDeath,
-    biography,
-    late,
-    parents,
-    status: "approved", // Ensure status is set to "approved"
-  });
+// // Function to create a single person
+// const createPerson = async (
+//   name,
+//   gender,
+//   dateOfBirth,
+//   dateOfDeath,
+//   biography,
+//   late,
+//   parents = [],
+//   spouse = null
+// ) => {
+//   const person = new Person({
+//     name,
+//     gender,
+//     dateOfBirth,
+//     dateOfDeath,
+//     biography,
+//     late,
+//     parents,
+//     spouse, // Assign spouse here
+//     spouseIds: spouse ? [spouse] : [], // Initialize spouseIds with the spouse if provided
+//     status: "approved", // Ensure status is set to "approved"
+//   });
 
-  return await person.save();
-};
+//   return await person.save();
+// };
 
-// Function to create a family with a given number of children
-const createFamily = async (numChildren, mother, father) => {
-  const family = [];
-  for (let i = 0; i < numChildren; i++) {
-    const child = await createPerson(
-      faker.person.fullName(),
-      faker.helpers.arrayElement(["male", "female"]),
-      getRandomDate(1950, 2000),
-      Math.random() > 0.5 ? getRandomDate(2000, 2024) : null,
-      faker.lorem.paragraph(),
-      Math.random() > 0.5,
-      [mother._id, father._id] // Array of parent IDs
-    );
-    family.push(child);
 
-    // Update parents' children lists
-    mother.children.push(child._id);
-    father.children.push(child._id);
-  }
+// // Function to create a family tree
+// const createFamilyTree = async (numOfFamilies, numOfChildrenPerFamily) => {
+//   for (let i = 0; i < numOfFamilies; i++) {
+//     // Create the grandparent
+//     const grandparent = await createPerson(
+//       faker.person.fullName(),
+//       faker.helpers.arrayElement(["male", "female"]),
+//       getRandomDate(1920, 1950),
+//       Math.random() > 0.5 ? getRandomDate(2000, 2024) : null,
+//       faker.lorem.paragraph(),
+//       Math.random() > 0.5
+//     );
 
-  await mother.save();
-  await father.save();
+//     // Create the first parent (child of the grandparent)
+//     const parent1 = await createPerson(
+//       faker.person.fullName(),
+//       "male",
+//       getRandomDate(1950, 1980),
+//       Math.random() > 0.5 ? getRandomDate(2000, 2024) : null,
+//       faker.lorem.paragraph(),
+//       Math.random() > 0.5,
+//       [grandparent._id]
+//     );
 
-  return family;
-};
+//     // Create the second parent (spouse of the first parent)
+//     const parent2 = await createPerson(
+//       faker.person.fullName(),
+//       "female",
+//       getRandomDate(1950, 1980),
+//       Math.random() > 0.5 ? getRandomDate(2000, 2024) : null,
+//       faker.lorem.paragraph(),
+//       Math.random() > 0.5
+//     );
 
-// Function to create a small family tree with one grandparent and two families
-const createSmallFamilyTree = async () => {
-  // Create the grandparent
-  const grandparent = await createPerson(
-    faker.person.fullName(),
-    faker.helpers.arrayElement(["male", "female"]),
-    getRandomDate(1920, 1950),
-    Math.random() > 0.5 ? getRandomDate(2000, 2024) : null,
-    faker.lorem.paragraph(),
-    Math.random() > 0.5
-  );
+//     // Update parent1 and parent2 to reference each other as spouses
+//     parent1.spouse = parent2._id;
+//     parent2.spouse = parent1._id;
 
-  // Create the first parent (child of the grandparent)
-  const parent1 = await createPerson(
-    faker.person.fullName(),
-    "male",
-    getRandomDate(1950, 1980),
-    Math.random() > 0.5 ? getRandomDate(2000, 2024) : null,
-    faker.lorem.paragraph(),
-    Math.random() > 0.5,
-    [grandparent._id]
-  );
+//     // Save parent1 and parent2 first to have their IDs for updating spouseIds
+//     await parent1.save();
+//     await parent2.save();
 
-  // Create the second parent (child of the grandparent)
-  const parent2 = await createPerson(
-    faker.person.fullName(),
-    "female",
-    getRandomDate(1950, 1980),
-    Math.random() > 0.5 ? getRandomDate(2000, 2024) : null,
-    faker.lorem.paragraph(),
-    Math.random() > 0.5,
-    [grandparent._id]
-  );
+//     // Add spouse to spouseIds arrays
+//     parent1.spouseIds.push(parent2._id);
+//     parent2.spouseIds.push(parent1._id);
 
-  // Create two families with the parents
-  const family1 = await createFamily(3, parent1, parent2);
-  const family2 = await createFamily(2, parent1, parent2);
+//     // Save updated spouseIds
+//     await parent1.save();
+//     await parent2.save();
 
-  // Create a sub-family with one of the children from Family 1
-  const subFamilyParent = family1[0]; // First child of parent1 and parent2
-  const subFamily = await createFamily(2, subFamilyParent, subFamilyParent); // This person is their own parent for this example
+//     // Create children for parent1 and parent2
+//     const children = [];
+//     for (let j = 0; j < numOfChildrenPerFamily; j++) {
+//       const child = await createPerson(
+//         faker.person.fullName(),
+//         faker.helpers.arrayElement(["male", "female"]),
+//         getRandomDate(1980, 2005),
+//         Math.random() > 0.5 ? getRandomDate(2024, 2050) : null,
+//         faker.lorem.paragraph(),
+//         Math.random() > 0.5,
+//         [parent1._id, parent2._id] // Assigning both parents to each child
+//       );
+//       children.push(child);
 
-  // Update all relevant parent-child relationships
-  const allParents = [parent1, parent2];
-  for (const family of [family1, family2]) {
-    for (const child of family) {
-      child.parents.push(...allParents.map((p) => p._id));
-      await child.save();
-    }
-  }
+//       // Update parents' children lists
+//       parent1.children.push(child._id);
+//       parent2.children.push(child._id);
+//     }
 
-  // Update sub-family parent relationships
-  for (const child of subFamily) {
-    child.parents.push(subFamilyParent._id);
-    await child.save();
-  }
+//     // Save all parent-child relationships
+//     await parent1.save();
+//     await parent2.save();
+//     await grandparent.save();
 
-  await grandparent.save();
-};
+//     // Update children's parent lists and siblings
+//     for (const child of children) {
+//       child.parents = [parent1._id, parent2._id];
+//       await child.save();
+//     }
 
-const generateDummyData = async () => {
-  try {
-    console.log("Starting dummy data generation...");
+//     // Create siblings relationships
+//     for (let k = 0; k < children.length; k++) {
+//       for (let l = k + 1; l < children.length; l++) {
+//         children[k].siblings.push(children[l]._id);
+//         children[l].siblings.push(children[k]._id);
+//       }
+//     }
 
-    // Create the small family tree
-    await createSmallFamilyTree();
+//     // Save sibling relationships
+//     for (const child of children) {
+//       await child.save();
+//     }
+//   }
 
-    console.log("Dummy data generation completed successfully");
-  } catch (error) {
-    console.error("Error generating dummy data", error);
-  } finally {
-    mongoose.connection.close();
-  }
-};
+//   console.log(
+//     `${numOfFamilies} family trees created with parents, children, and spouses.`
+//   );
+// };
 
-module.exports = generateDummyData;
+
+// // Main function to generate dummy data
+// const generateDummyData = async () => {
+//   try {
+//     console.log("Starting dummy data generation...");
+
+//     const numOfFamilies = 10; // Number of family trees to generate
+//     const numOfChildrenPerFamily = 3; // Number of children per family
+
+//     // Create multiple family trees
+//     await createFamilyTree(numOfFamilies, numOfChildrenPerFamily);
+
+//     console.log("Dummy data generation completed successfully");
+//   } catch (error) {
+//     console.error("Error generating dummy data", error);
+//   } finally {
+//     mongoose.connection.close();
+//   }
+// };
+
+// module.exports = generateDummyData;
 
 // const mongoose = require("mongoose");
 // const { faker } = require("@faker-js/faker");
@@ -231,3 +253,136 @@ module.exports = generateDummyData;
 // };
 
 // module.exports = generateDummyData;
+
+
+
+const mongoose = require("mongoose");
+const { faker } = require("@faker-js/faker");
+const Person = require("../Models/Person"); // Update the path to your Person model
+
+// Function to create or find a person by key
+const findOrCreatePerson = async (key, name, sex) => {
+  let person = await Person.findOne({ key });
+  if (!person) {
+    person = new Person({ key, n: name, s: sex });
+    await person.save();
+  }
+  return person;
+};
+
+// Function to create a single person
+const createPerson = async (
+  key,
+  name,
+  sex,
+  motherId = null,
+  fatherId = null,
+  spouseIds = [],
+  tag = null
+) => {
+  const person = new Person({
+    key,
+    n: name,
+    s: sex,
+    m: motherId,
+    f: fatherId,
+    spouse: spouseIds,
+    t: tag,
+  });
+
+  return await person.save();
+};
+
+// Function to create a family tree
+const createFamilyTree = async (numOfPersons) => {
+  const persons = [];
+
+  for (let i = 0; i < numOfPersons; i++) {
+    const key = faker.string.uuid();
+    const name = faker.person.fullName();
+    const sex = faker.helpers.arrayElement(["M", "F", "N"]);
+
+    // Optionally create parents for each person
+    let mother = null;
+    let father = null;
+
+    if (Math.random() > 0.2) {
+      // 80% chance to have parents
+      const motherKey = faker.string.uuid();
+      const fatherKey = faker.string.uuid();
+
+      mother = await findOrCreatePerson(
+        motherKey,
+        faker.person.fullName({ sex: "female" }),
+        "F"
+      );
+      father = await findOrCreatePerson(
+        fatherKey,
+        faker.person.fullName({ sex: "male" }),
+        "M"
+      );
+
+      // Link mother and father as spouses
+      mother.spouse = [...(mother.spouse || []), father._id];
+      father.spouse = [...(father.spouse || []), mother._id];
+
+      await mother.save();
+      await father.save();
+    }
+
+    // Create person
+    const person = await createPerson(
+      key,
+      name,
+      sex,
+      mother ? mother._id : null,
+      father ? father._id : null,
+      [], // Initialize with empty spouse array
+      null
+    );
+    persons.push(person);
+
+    // Optionally create a spouse for the person
+    if (Math.random() > 0.5) {
+      // 50% chance to have a spouse
+      const spouseKey = faker.string.uuid();
+      const spouseSex = sex === "M" ? "F" : "M"; // Opposite sex for simplicity
+      const spouse = await findOrCreatePerson(
+        spouseKey,
+        faker.person.fullName(),
+        spouseSex
+      );
+
+      person.spouse = [...(person.spouse || []), spouse._id];
+      spouse.spouse = [...(spouse.spouse || []), person._id];
+
+      await person.save();
+      await spouse.save();
+    }
+  }
+
+  console.log(`${numOfPersons} persons created with parents and spouses.`);
+};
+
+// Main function to generate dummy data
+const generateDummyData = async () => {
+  try {
+    console.log("Starting dummy data generation...");
+
+    const numOfPersons = 50; // Number of persons to generate
+
+    // Create family tree data
+    await createFamilyTree(numOfPersons);
+
+    console.log("Dummy data generation completed successfully");
+  } catch (error) {
+    console.error("Error generating dummy data", error);
+  } finally {
+    mongoose.connection.close();
+  }
+};
+
+module.exports = generateDummyData;
+
+
+

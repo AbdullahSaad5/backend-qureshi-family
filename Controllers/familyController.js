@@ -1,10 +1,9 @@
-const Person = require("../Models/familyMember");
+const Person = require("../Models/Person");
 const User = require("../Models/Auth");
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 const { performance } = require("perf_hooks");
 const Counter = require("../Models/TasbeehCounter");
-
 
 const signup = async (req, res) => {
   const { email, password } = req.body;
@@ -148,63 +147,130 @@ const createPerson = async (req, res) => {
 };
 
 const transformFamilyData = (members) => {
-  const extractYear = (dateString) => {
-    const date = new Date(dateString);
-    return date.getFullYear();
+  const getGender = (gender) => {
+    switch (gender) {
+      case "male":
+        return "M";
+      case "female":
+        return "F";
+      default:
+        return "N";
+    }
   };
 
   const buildNodeObject = (member) => {
+    const spouseIds = (member.spouseIds || []).map((id) => id.toString());
+
     return {
-      _id: member._id.toString(),
-      name: member.name,
-      gender: member.gender,
-      parents: member.parents.map((parent) => parent._id.toString()), // Ensure this is an array
-      born: extractYear(member.dateOfBirth),
-      death: extractYear(member.dateOfDeath),
+      key: member._id.toString(),
+      n: member.name,
+      s: getGender(member.gender),
+      m: member.parents
+        .find((parent) => parent.gender === "female")
+        ?._id.toString(),
+      f: member.parents
+        .find((parent) => parent.gender === "male")
+        ?._id.toString(),
+      spouse: spouseIds.length ? spouseIds[0] : undefined,
     };
   };
 
-  // Convert the array of members to the desired format
   const transformedData = members.map(buildNodeObject);
 
   return transformedData;
 };
 
 const getFamilyTrees = async (req, res) => {
-  const startTime = performance.now(); // Start timing
-
   try {
-    // Fetch all persons with the necessary relationships populated
-    const allPersons = await Person.find({ status: "approved" })
-      .populate("parents") // Populate parents
-      .populate("children")
-      .populate("siblings")
-      .populate("stepParents")
-      .populate("stepChildren")
-      .populate("halfSiblings");
+    console.log("Inside get tree controller function");
 
-    // Transform the family data
-    const nodeDataArray = transformFamilyData(allPersons);
+    const people = await Person.find({});
+    // const people = await Person.aggregate([
+    //   {
+    //     $lookup: {
+    //       from: "dummypeople",
+    //       localField: "m",
+    //       foreignField: "_id",
+    //       as: "mother",
+    //     },
+    //   },
+    //   {
+    //     $lookup: {
+    //       from: "dummypeople",
+    //       localField: "f",
+    //       foreignField: "_id",
+    //       as: "father",
+    //     },
+    //   },
+    //   {
+    //     $addFields: {
+    //       mother: { $arrayElemAt: ["$mother._id", 0] },
+    //       father: { $arrayElemAt: ["$father._id", 0] },
+    //     },
+    //   },
+    //   {
+    //     $project: {
+    //       key: 1,
+    //       n: 1,
+    //       s: 1,
+    //       m: { $ifNull: ["$mother", null] },
+    //       f: { $ifNull: ["$father", null] },
+    //       spouse: {
+    //         $cond: {
+    //           if: { $gt: [{ $size: "$spouse" }, 0] },
+    //           then: "$spouse",
+    //           else: null,
+    //         },
+    //       },
+    //     },
+    //   },
+    // ]);
 
-    // Prepare response with transformed data
-    const response = {
-      familyTreeData: nodeDataArray,
-    };
+    people.forEach((person) => {
+      if (!person.spouse.length) delete person.spouse;
+    });
 
-    const endTime = performance.now(); // End timing
-    const responseTime = (endTime - startTime).toFixed(2); // Calculate response time
-
-    return res
-      .status(200)
-      .json({ ...response, responseTime: `${responseTime}ms` });
+    res.json(people);
   } catch (error) {
-    console.error("Error fetching family trees:", error);
-    return res
-      .status(500)
-      .json({ message: "An error occurred while fetching the family trees." });
+    console.error(error);
+    res.status(500).send("Server error");
   }
 };
 
+const addPerson = async (req, res) => {
+  try {
+    const { key, n, s, m, f, spouse, t } = req.body;
+
+    // Check if a person with the same key already exists
+    const existingPerson = await Person.findOne({ key });
+    if (existingPerson) {
+      return res
+        .status(400)
+        .json({ message: "Person with this key already exists." });
+    }
+
+    // Create a new person
+    const newPerson = new Person({
+      key,
+      n,
+      s,
+      m,
+      f,
+      spouse,
+      t,
+    });
+
+    // Save the person to the database
+    await newPerson.save();
+
+    res
+      .status(201)
+      .json({ message: "Person added successfully", person: newPerson });
+  } catch (error) {
+    console.error("Error adding person:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
 
 // const buildNodeObject = (member) => {
 //   return {
@@ -1112,8 +1178,6 @@ const getCounter = async (req, res) => {
   }
 };
 
-
-
 const postCounter = async (req, res) => {
   try {
     // Fetch the counter value from the database
@@ -1142,8 +1206,6 @@ const postCounter = async (req, res) => {
   }
 };
 
-
-
 module.exports = {
   createPerson,
   getFamilyTrees,
@@ -1160,4 +1222,5 @@ module.exports = {
   getPendingChildAdditionRequests,
   getCounter,
   postCounter,
+  addPerson,
 };

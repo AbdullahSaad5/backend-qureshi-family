@@ -23,6 +23,9 @@ router.get("/counter", familyController.getCounter);
 
 router.post("/counter/:no", familyController.postCounter);
 
+router.post("/addPerson", familyController.addPerson);
+
+
 
 
 

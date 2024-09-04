@@ -1,4 +1,4 @@
-const Person = require("../Models/Person");
+const Person = require("../Models/familyMember");
 const User = require("../Models/Auth");
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
@@ -1055,7 +1055,10 @@ const childAdditionRequest = async (req, res) => {
 const getPendingChildAdditionRequests = async (req, res) => {
   try {
     // Fetch all persons with the status 'pending'
-    const pendingRequests = await Person.find({ status: "pending" });
+    const pendingRequests = await Person.find({ status: "pending" }).populate(
+      "parents",
+      "_id"
+    );
 
     if (pendingRequests.length === 0) {
       return res.json({
@@ -1065,10 +1068,11 @@ const getPendingChildAdditionRequests = async (req, res) => {
 
     // Extract required data for each pending request
     const requestsData = pendingRequests.map((request) => {
-      const parent = request.parents[0]; // Assuming the first parent is the relevant one
+      // Extract all parent IDs
+      const parentIds = request.parents.map((parent) => parent._id);
       return {
         requestId: request._id,
-        parentId: parent,
+        parentIds, // Include all parent IDs
         childName: request.name,
         childGender: request.gender,
         childDateOfBirth: request.dateOfBirth,
@@ -1088,6 +1092,7 @@ const getPendingChildAdditionRequests = async (req, res) => {
     });
   }
 };
+
 
 const addSpouse = async (req, res) => {
   const { personId, spouseId } = req.params;

@@ -2,6 +2,8 @@ const express = require("express");
 require("dotenv").config();
 const bodyParser = require("body-parser");
 const familyRoutes = require("./Routes/familyRoutes");
+const createUserRoutes =require("./Routes/route.createUser")
+
 const app = express();
 const connectDB = require("./Config/db");
 const cors = require("cors");
@@ -15,6 +17,7 @@ const startServer = async () => {
     app.use(cors());
 
     app.use("/api", familyRoutes);
+    app.use("/api",createUserRoutes)
 
     // Start server
     const PORT = process.env.PORT || 8080;

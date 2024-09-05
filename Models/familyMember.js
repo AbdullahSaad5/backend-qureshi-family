@@ -6,6 +6,22 @@ const personSchema = new Schema({
     type: String,
     required: true,
   },
+  ID: {
+    type: String,
+  },
+  address: {
+    type: String,
+  },
+  tribe: {
+    type: String,
+  },
+  veriCount: {
+    type: Number,
+  },
+  isPublic: {
+    type: Boolean,
+    default: false,
+  },
   gender: {
     type: String,
     enum: ["male", "female"],
@@ -23,45 +39,17 @@ const personSchema = new Schema({
     default: "pending",
   },
 
-  parents: [
-    {
-      type: Schema.Types.ObjectId,
-      ref: "Person",
-    },
-  ],
-
-  children: [
-    {
-      type: Schema.Types.ObjectId,
-      ref: "Person",
-    },
-  ],
-
-  spouse: {
+  // Replacing the `parents` field with `father` and `mother`
+  father: {
+    type: Schema.Types.ObjectId,
+    ref: "Person",
+  },
+  mother: {
     type: Schema.Types.ObjectId,
     ref: "Person",
   },
 
-  siblings: [
-    {
-      type: Schema.Types.ObjectId,
-      ref: "Person",
-    },
-  ],
-
-  stepParents: [
-    {
-      type: Schema.Types.ObjectId,
-      ref: "Person",
-    },
-  ],
-  stepChildren: [
-    {
-      type: Schema.Types.ObjectId,
-      ref: "Person",
-    },
-  ],
-  halfSiblings: [
+  children: [
     {
       type: Schema.Types.ObjectId,
       ref: "Person",
@@ -75,11 +63,17 @@ const personSchema = new Schema({
     },
   ],
 
+  siblings: [
+    {
+      type: Schema.Types.ObjectId,
+      ref: "Person",
+    },
+  ],
+
   biography: {
     type: String,
   },
-
-  late: {
+  isProminentFigure: {
     type: Boolean,
     default: false,
   },

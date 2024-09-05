@@ -34,9 +34,12 @@ router.post(
   familyController.addChildById
 );
 
-router.put("/addChildApprov", familyController.childAdditionRequest);
+router.put("/addChildApprov/:childID", familyController.childAdditionRequest);
 
 router.post("/addChild", familyController.addChild);
+
+router.post("/makePublicFigure/:personId", familyController.makePublicFigure);
+
 
 router.post("/members/:personId/spouse/:spouseId", familyController.addSpouse);
 

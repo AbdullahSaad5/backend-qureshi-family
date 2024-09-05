@@ -183,7 +183,7 @@ const transformFamilyData = (members) => {
 const getFamilyTrees = async (req, res) => {
   try {
     // Fetch all family members from the database and populate relationships
-    const members = await Person.find({}).populate(
+    const members = await Person.find({ status: "approved" }).populate(
       "spouseIds father mother children"
     );
 
@@ -929,17 +929,6 @@ const createAndSaveChild = async ({
   }
 };
 
-
-
-
-
-
-
-
-
-
-
-
 // const addChild = async (req, res) => {
 //   const {
 //     parentName,
@@ -1093,45 +1082,27 @@ const handleChildCreation = async (req, res, parent) => {
 };
 
 const childAdditionRequest = async (req, res) => {
-  const { approve, parentId, childName, childGender, childDateOfBirth } =
-    req.body;
+  const { childID } =
+    req.params;
 
   try {
-    if (approve) {
-      const parent = await Person.findById(parentId);
+  
+      const childExist = await Person.findById(childID);
 
-      if (!parent) {
-        return res.status(404).json({ error: "Parent not found" });
+      if (!childExist) {
+        return res.status(404).json({ error: "Child not found" });
       }
 
-      const newChild = new Person({
-        name: childName.trim(),
-        gender: childGender,
-        dateOfBirth: new Date(childDateOfBirth),
-        parents: [parent._id],
-        status: "approved",
-      });
+       childExist.status = "approved";
 
-      const savedChild = await newChild.save();
+       await childExist.save();
 
-      await Person.findByIdAndUpdate(parent._id, {
-        $addToSet: { children: savedChild._id },
-      });
 
       return res.json({
-        message: "Child added successfully",
-        child: savedChild,
-        parent: {
-          name: parent.name,
-          dateOfBirth: parent.dateOfBirth,
-          gender: parent.gender,
-        },
+        message: "Child approve successfully",
+        
       });
-    } else {
-      return res.json({
-        message: "Child addition request rejected",
-      });
-    }
+    
   } catch (error) {
     console.error("Error processing child addition request:", error);
     res.status(500).json({
@@ -1143,35 +1114,11 @@ const childAdditionRequest = async (req, res) => {
 
 const getPendingChildAdditionRequests = async (req, res) => {
   try {
-    // Fetch all persons with the status 'pending'
-    const pendingRequests = await Person.find({ status: "pending" }).populate(
-      "parents",
-      "_id"
-    );
-
-    if (pendingRequests.length === 0) {
-      return res.json({
-        message: "No pending child addition requests found",
-      });
-    }
-
-    // Extract required data for each pending request
-    const requestsData = pendingRequests.map((request) => {
-      // Extract all parent IDs
-      const parentIds = request.parents.map((parent) => parent._id);
-      return {
-        requestId: request._id,
-        parentIds, // Include all parent IDs
-        childName: request.name,
-        childGender: request.gender,
-        childDateOfBirth: request.dateOfBirth,
-        status: request.status,
-      };
-    });
+    const pendingRequests = await Person.find({ status: "pending" });
 
     return res.json({
       message: "Pending child addition requests retrieved successfully",
-      requests: requestsData,
+      requests: pendingRequests,
     });
   } catch (error) {
     console.error("Error retrieving pending child addition requests:", error);
@@ -1299,6 +1246,19 @@ const postCounter = async (req, res) => {
   }
 };
 
+const makePublicFigure = async (req, res) => {
+  const { personId } = req.params;
+
+  const personExist = await Person.findById(personId);
+  if (!personExist) {
+    return res.status(404).json({ error: "Person not found" });
+  }
+  personExist.isPublic = true;
+  await personExist.save();
+  res.json({ message: "Person made public" });
+
+}
+
 module.exports = {
   createPerson,
   getFamilyTrees,
@@ -1316,4 +1276,5 @@ module.exports = {
   getCounter,
   postCounter,
   addPerson,
+  makePublicFigure,
 };

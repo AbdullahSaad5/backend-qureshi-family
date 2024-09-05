@@ -5,7 +5,7 @@ const familyRoutes = require("./Routes/familyRoutes");
 const app = express();
 const connectDB = require("./Config/db");
 const cors = require("cors");
-const generateDummyDataa = require("./helpers/generateDummyDataa");
+const {generateDummyFamily} = require("./helpers/generateDummyDataa");
 const { addData } = require("./helper");
 
 const startServer = async () => {
@@ -26,7 +26,7 @@ const startServer = async () => {
     });
 
     // Generate dummy data
-    // await generateDummyDataa();
+    // await generateDummyFamily();
   } catch (error) {
     console.error("Error starting server:", error.message);
   }

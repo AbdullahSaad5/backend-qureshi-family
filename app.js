@@ -6,10 +6,13 @@ const app = express();
 const connectDB = require("./Config/db");
 const cors = require("cors");
 const generateDummyDataa = require("./helpers/generateDummyDataa");
+const { addData } = require("./helper");
 
 const startServer = async () => {
   try {
     await connectDB(); // Ensure the connection is established
+
+    addData();
 
     app.use(bodyParser.json());
     app.use(cors());

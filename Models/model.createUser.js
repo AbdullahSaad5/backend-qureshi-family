@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-
 const schema = mongoose.Schema;
 
 // CreateUser Schema
@@ -14,7 +13,8 @@ const createUserSchema = new schema({
     },
     email: {
         type: String,
-        required: true
+        required: true,
+        unique: true // Ensure email is unique
     },
     password: {
         type: String,
@@ -23,7 +23,12 @@ const createUserSchema = new schema({
     aboutYou: {
         type: String
     },
-
+    resetPasswordToken: {
+        type: String
+    },
+    resetPasswordExpires: {
+        type: Date
+    },
     date_time: {
         type: Date,
         default: Date.now

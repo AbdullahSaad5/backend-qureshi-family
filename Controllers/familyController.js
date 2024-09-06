@@ -1440,7 +1440,22 @@ const getAllPublicFigures = async (req, res) => {
   }
 };
 
+const getAllPersons = async (req, res) => {
+   try {
+
+     const persons = await Person.find().populate(
+       "father mother children spouseIds siblings"
+     );
+
+     res.status(200).json(persons);
+   } catch (error) {
+     console.error("Error fetching persons:", error);
+     res.status(500).json({ message: "Server error" });
+   }
+}
+
 module.exports = {
+  getAllPersons,
   createPerson,
   getFamilyTrees,
   getPersonById,

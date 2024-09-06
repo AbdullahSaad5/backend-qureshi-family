@@ -149,4 +149,30 @@ router.post('/createUser/reset_password/:token', async (req, res) => {
     }
 });
 
+router.post("/update_password", async (req, res) => {
+    try {
+        const { userId, oldPassword, newPassword } = req.body;
+        // Validate input
+        if (!userId || !oldPassword || !newPassword) {
+            return res.status(400).json({
+                message: "User ID, old password, and new password are required",
+                status: false
+            });
+        }
+        // Check if the old password is correct and update password
+        const result = await createUser.updatePassword(userId, oldPassword, newPassword);
+        return res.json({
+            message: result.message,
+            status: true
+        });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({
+            message: err.message,
+            status: false
+        });
+    }
+});
+
+
 module.exports = router;

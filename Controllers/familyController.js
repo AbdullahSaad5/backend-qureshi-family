@@ -857,12 +857,9 @@ const addChild = async (req, res) => {
     }
 
     // Handle spouse creation or lookup
-    if (spouseName || ID || tribe || address || spouseDOB || spouseGender) {
+    if (spouseName || spouseDOB || spouseGender) {
       const spouseQuery = {
         name: new RegExp(`^${spouseName}$`, "i"),
-        _id: ID,
-        tribe,
-        address,
         dateOfBirth: spouseDOB ? new Date(spouseDOB) : undefined,
         gender: spouseGender,
       };
@@ -880,8 +877,6 @@ const addChild = async (req, res) => {
           name: spouseName,
           dateOfBirth: new Date(spouseDOB),
           gender: spouseGender,
-          tribe,
-          address,
         });
 
         await newSpouse.save();
@@ -891,12 +886,14 @@ const addChild = async (req, res) => {
       }
     }
 
-    // Proceed to create and save the child
     await createAndSaveChild({
       father,
-      motherId, // Pass motherId here
+      motherId,
       childName,
       childGender,
+      ID,
+      tribe,
+      address,
       childDOB,
       spouse,
       res,
@@ -1009,10 +1006,11 @@ const searchPersonByName = async (req, res) => {
   try {
     const people = await Person.find({
       name: new RegExp(name, "i"),
+      gender: "male",
     })
-      .populate("mother", "name") // Populate the mother field with name
-      .populate("father", "name") // Populate the father field with name
-      .select("name tribe dateOfBirth mother father _id"); // Select the fields to return
+      .populate("mother", "name") 
+      .populate("father", "name") 
+      .select("name tribe dateOfBirth mother father _id"); 
 
     if (people.length === 0) {
       return res.status(200).json({
@@ -1038,15 +1036,12 @@ const searchPersonByName = async (req, res) => {
   }
 };
 
-
-
 // ------------- Get Person With family --------------
 
 const getPersonWithFamily = async (req, res) => {
-  const { id } = req.params; 
+  const { id } = req.params;
 
   try {
-    
     const person = await Person.findById(id)
       .populate({
         path: "father",
@@ -1061,14 +1056,17 @@ const getPersonWithFamily = async (req, res) => {
         select: "name",
       })
       .populate("mother", "name")
-      .select("name dateOfBirth father mother"); 
+      .select("name dateOfBirth father mother");
 
     if (!person) {
       return res.status(404).json({ message: "Person not found" });
     }
 
-    const spouses = person.spouseIds.map((spouse) => spouse.name);
-    
+    const spouses = person.spouseIds.map((spouse) => ({
+      id: spouse._id,
+      name: spouse.name,
+    }));
+
     const responseData = {
       name: person.name,
       dateOfBirth: person.dateOfBirth,
@@ -1085,8 +1083,6 @@ const getPersonWithFamily = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-
-
 
 // const addChild = async (req, res) => {
 //   const {
@@ -1467,7 +1463,3 @@ module.exports = {
   searchPersonByName,
   getPersonWithFamily,
 };
-
-
-
-

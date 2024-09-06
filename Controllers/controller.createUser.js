@@ -168,3 +168,26 @@ module.exports.loginUser = async (email, password) => {
     throw new Error("Error logging in: " + err.message);
   }
 };
+
+
+module.exports.updatePassword = async (userId, oldPassword, newPassword) => {
+    try {
+        // Find the user by ID
+        const user = await CreateUser.findById(userId);
+        if (!user) {
+            throw new Error("User not found");
+        }
+        // Compare the old password with the hashed password in the database
+        const isMatch = await bcrypt.compare(oldPassword, user.password);
+        if (!isMatch) {
+            throw new Error("Old password is incorrect");
+        }
+        // Hash the new password and update it
+        const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+        user.password = hashedPassword;
+        await user.save();
+        return { message: "Password updated successfully" };
+    } catch (err) {
+        throw new Error("Error updating password: " + err.message);
+    }
+};

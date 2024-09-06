@@ -857,12 +857,9 @@ const addChild = async (req, res) => {
     }
 
     // Handle spouse creation or lookup
-    if (spouseName || ID || tribe || address || spouseDOB || spouseGender) {
+    if (spouseName || spouseDOB || spouseGender) {
       const spouseQuery = {
         name: new RegExp(`^${spouseName}$`, "i"),
-        _id: ID,
-        tribe,
-        address,
         dateOfBirth: spouseDOB ? new Date(spouseDOB) : undefined,
         gender: spouseGender,
       };
@@ -880,8 +877,6 @@ const addChild = async (req, res) => {
           name: spouseName,
           dateOfBirth: new Date(spouseDOB),
           gender: spouseGender,
-          tribe,
-          address,
         });
 
         await newSpouse.save();
@@ -891,12 +886,15 @@ const addChild = async (req, res) => {
       }
     }
 
-    // Proceed to create and save the child
+    
     await createAndSaveChild({
       father,
-      motherId, // Pass motherId here
+      motherId, 
       childName,
       childGender,
+      ID,
+      tribe,
+      address,
       childDOB,
       spouse,
       res,

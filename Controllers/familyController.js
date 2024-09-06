@@ -219,6 +219,75 @@ const getFamilyTrees = async (req, res) => {
   }
 };
 
+const getFamilyTreeById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Fetch the person by ID and populate relationships
+    const person = await Person.findById(id)
+      .populate("father mother spouseIds children siblings")
+      .exec();
+
+    if (!person) {
+      return res.status(404).json({ message: "Person not found" });
+    }
+
+    // Helper function to format person details
+    const formatPerson = (person) => ({
+      _id: person._id,
+      name: person.name,
+      gender: person.gender,
+      dateOfBirth: person.dateOfBirth,
+      dateOfDeath: person.dateOfDeath,
+      father: person.father ? person.father._id : null,
+      mother: person.mother ? person.mother._id : null,
+      spouseIds: person.spouseIds
+        ? person.spouseIds.map((spouse) => spouse._id)
+        : [],
+      childrenIds: person.children
+        ? person.children.map((child) => child._id)
+        : [],
+    });
+
+    // Collect all family members in a set to avoid duplicates
+    const familyMembers = new Set();
+
+    // Add the main person
+    familyMembers.add(formatPerson(person));
+
+    // Add father and mother
+    if (person.father) familyMembers.add(formatPerson(person.father));
+    if (person.mother) familyMembers.add(formatPerson(person.mother));
+
+    // Add spouses
+    if (person.spouseIds) {
+      person.spouseIds.forEach((spouse) =>
+        familyMembers.add(formatPerson(spouse))
+      );
+    }
+
+    // Add children
+    if (person.children) {
+      person.children.forEach((child) =>
+        familyMembers.add(formatPerson(child))
+      );
+    }
+
+    // Add siblings
+    if (person.siblings) {
+      person.siblings.forEach((sibling) =>
+        familyMembers.add(formatPerson(sibling))
+      );
+    }
+
+    // Convert Set to Array and return
+    res.json(Array.from(familyMembers));
+  } catch (error) {
+    console.error("Error fetching family tree:", error);
+    res.status(500).json({ message: "Error fetching family tree" });
+  }
+};
+
 const addPerson = async (req, res) => {
   try {
     const { key, n, s, m, f, spouse, t } = req.body;
@@ -660,6 +729,8 @@ const addChildById = async (req, res) => {
   }
 };
 
+// -------------------- Validate Father -------------------
+
 const addChild = async (req, res) => {
   try {
     console.log("Inside API call");
@@ -865,6 +936,7 @@ const createAndSaveChild = async ({
       if (possibleMothers.length === 0) {
         return res.status(400).json({
           message: "No possible mothers found in father's spouse IDs.",
+          fatherID: father._id,
         });
       }
 
@@ -928,6 +1000,93 @@ const createAndSaveChild = async ({
     res.status(500).json({ message: "Error creating child" });
   }
 };
+
+// -------------Searchable select API -----------------
+
+const searchPersonByName = async (req, res) => {
+  const { name } = req.params;
+
+  try {
+    const people = await Person.find({
+      name: new RegExp(name, "i"),
+    })
+      .populate("mother", "name") // Populate the mother field with name
+      .populate("father", "name") // Populate the father field with name
+      .select("name tribe dateOfBirth mother father _id"); // Select the fields to return
+
+    if (people.length === 0) {
+      return res.status(200).json({
+        message: "No matching persons found",
+        people: [],
+      });
+    }
+
+    // Format the response to include mother and father names
+    const formattedPeople = people.map((person) => ({
+      _id: person._id,
+      name: person.name,
+      tribe: person.tribe || "Unknown Tribe",
+      dateOfBirth: person.dateOfBirth,
+      mother: person.mother ? person.mother.name : "Unknown Mother",
+      father: person.father ? person.father.name : "Unknown Father",
+    }));
+
+    res.status(200).json(formattedPeople);
+  } catch (error) {
+    console.error("Error fetching persons:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+
+// ------------- Get Person With family --------------
+
+const getPersonWithFamily = async (req, res) => {
+  const { id } = req.params; 
+
+  try {
+    
+    const person = await Person.findById(id)
+      .populate({
+        path: "father",
+        select: "name father mother",
+        populate: {
+          path: "father mother",
+          select: "name",
+        },
+      })
+      .populate({
+        path: "spouseIds", // Populate the spouseIds field
+        select: "name",
+      })
+      .populate("mother", "name")
+      .select("name dateOfBirth father mother"); 
+
+    if (!person) {
+      return res.status(404).json({ message: "Person not found" });
+    }
+
+    const spouses = person.spouseIds.map((spouse) => spouse.name);
+    
+    const responseData = {
+      name: person.name,
+      dateOfBirth: person.dateOfBirth,
+      father: person.father ? person.father.name : null,
+      mother: person.mother ? person.mother.name : null,
+      grandfather: person.father?.father ? person.father.father.name : null,
+      grandmother: person.father?.mother ? person.father.mother.name : null,
+      spouses: spouses.length > 0 ? spouses : null,
+    };
+
+    res.status(200).json(responseData);
+  } catch (error) {
+    console.error("Error fetching person with family:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
 
 // const addChild = async (req, res) => {
 //   const {
@@ -1082,27 +1241,22 @@ const handleChildCreation = async (req, res, parent) => {
 };
 
 const childAdditionRequest = async (req, res) => {
-  const { childID } =
-    req.params;
+  const { childID } = req.params;
 
   try {
-  
-      const childExist = await Person.findById(childID);
+    const childExist = await Person.findById(childID);
 
-      if (!childExist) {
-        return res.status(404).json({ error: "Child not found" });
-      }
+    if (!childExist) {
+      return res.status(404).json({ error: "Child not found" });
+    }
 
-       childExist.status = "approved";
+    childExist.status = "approved";
 
-       await childExist.save();
+    await childExist.save();
 
-
-      return res.json({
-        message: "Child approve successfully",
-        
-      });
-    
+    return res.json({
+      message: "Child approve successfully",
+    });
   } catch (error) {
     console.error("Error processing child addition request:", error);
     res.status(500).json({
@@ -1130,20 +1284,39 @@ const getPendingChildAdditionRequests = async (req, res) => {
 };
 
 const addSpouse = async (req, res) => {
-  const { personId, spouseId } = req.params;
+  const { personId, spouseName, spouseDOB, SpouseGender } = req.body;
+
+  if (!personId || !spouseName || !spouseDOB || !SpouseGender) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
 
   try {
-    await Person.findByIdAndUpdate(personId, {
-      $push: { spouseIds: spouseId },
-      spouse: spouseId,
+    // 1. Create a new Person document for the spouse
+    const newSpouse = new Person({
+      name: spouseName,
+      dateOfBirth: new Date(spouseDOB),
+      gender: SpouseGender,
+      // Additional fields as needed
     });
 
-    await Person.findByIdAndUpdate(spouseId, {
-      $push: { spouseIds: personId },
-      spouse: personId,
-    });
+    // Save the new spouse
+    const savedSpouse = await newSpouse.save();
 
-    res.json({ message: "Spouse added successfully" });
+    // 2. Update the original Person document to include the new spouse
+    const person = await Person.findById(personId);
+
+    if (!person) {
+      return res.status(404).json({ error: "Person not found" });
+    }
+
+    person.spouseIds.push(savedSpouse._id);
+    await person.save();
+
+    // 3. Update the new spouse to include the original person
+    savedSpouse.spouseIds.push(person._id);
+    await savedSpouse.save();
+
+    res.json({ message: "Spouse added successfully", spouse: savedSpouse });
   } catch (error) {
     res
       .status(500)
@@ -1256,8 +1429,20 @@ const makePublicFigure = async (req, res) => {
   personExist.isPublic = true;
   await personExist.save();
   res.json({ message: "Person made public" });
+};
 
-}
+const getAllPublicFigures = async (req, res) => {
+  try {
+    const publicFigures = await Person.find(
+      { isProminentFigure: true },
+      "name biography"
+    );
+
+    res.status(200).json(publicFigures);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch public figures", error });
+  }
+};
 
 module.exports = {
   createPerson,
@@ -1277,4 +1462,12 @@ module.exports = {
   postCounter,
   addPerson,
   makePublicFigure,
+  getAllPublicFigures,
+  getFamilyTreeById,
+  searchPersonByName,
+  getPersonWithFamily,
 };
+
+
+
+

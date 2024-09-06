@@ -36,7 +36,7 @@ const personSchema = new Schema({
   status: {
     type: String,
     enum: ["pending", "approved", "rejected"],
-    default: "pending",
+    default: "approved",
   },
 
   // Replacing the `parents` field with `father` and `mother`

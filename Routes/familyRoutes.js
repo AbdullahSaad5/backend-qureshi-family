@@ -17,6 +17,9 @@ router.get("/members/:id", familyController.getPersonById);
 
 router.get("/members", familyController.getFamilyTrees);
 
+router.get("/getAllMembers", familyController.getAllPersons);
+
+
 router.get("/getPendingReq", familyController.getPendingChildAdditionRequests);
 
 router.get("/counter", familyController.getCounter);

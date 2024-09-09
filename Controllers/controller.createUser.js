@@ -172,7 +172,9 @@ module.exports.loginUser = async (email, password) => {
       throw error;
     }
 
-    return user;
+    const { password: _, ...userWithoutPassword } = user.toObject();
+
+    return userWithoutPassword;
   } catch (err) {
     err.message = "" + err.message;
     throw err;
@@ -198,5 +200,33 @@ module.exports.updatePassword = async (userId, oldPassword, newPassword) => {
     return { message: "Password updated successfully" };
   } catch (err) {
     throw new Error("Error updating password: " + err.message);
+  }
+};
+
+
+module.exports.updateProfile = async (userID, updates) => {
+  try {
+    const user = await CreateUser.findById(userID);
+    if (!user) {
+      const error = new Error("User not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Update fields if they are provided
+    if (updates.contact) {
+      user.contact = updates.contact;
+    }
+    if (updates.fullName) {
+      user.fullName = updates.fullName;
+    }
+
+    // Save the updated user
+    await user.save();
+
+    return { message: "Profile updated successfully" };
+  } catch (err) {
+    err.message = "" + err.message;
+    throw err;
   }
 };

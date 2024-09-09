@@ -100,7 +100,6 @@ router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-
     const user = await createUser.loginUser(email, password);
 
     return res.status(200).json({
@@ -117,7 +116,6 @@ router.post("/login", async (req, res) => {
     });
   }
 });
-
 
 // Request password reset
 router.post("/forget_password", async (req, res) => {
@@ -173,6 +171,37 @@ router.post("/update_password", async (req, res) => {
       oldPassword,
       newPassword
     );
+    return res.json({
+      message: result.message,
+      status: true,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      message: err.message,
+      status: false,
+    });
+  }
+});
+
+router.post("/update_profile", async (req, res) => {
+  try {
+    const { userID, contact, fullName } = req.body;
+
+    // Validate input
+    if (!userID) {
+      return res.status(400).json({
+        message: "User ID is required",
+        status: false,
+      });
+    }
+
+    // Call the updateProfile function
+    const result = await createUser.updateProfile(userID, {
+      contact,
+      fullName,
+    });
+
     return res.json({
       message: result.message,
       status: true,

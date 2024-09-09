@@ -1,5 +1,3 @@
-
-
 const CreateUser = require("../Models/model.createUser");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
@@ -70,7 +68,7 @@ module.exports.generateResetToken = async (email, host) => {
       text:
         `You are receiving this email because you requested a password reset for your account.\n\n` +
         `Please click on the following link, or paste it into your browser, to complete the process:\n\n` +
-        `http://${host}/reset_password/${resetToken}\n\n` +
+        `http://localhost:3000/NewPassword/${resetToken}\n\n` +
         `If you did not request this, please ignore this email.\n`,
     };
 
@@ -82,47 +80,54 @@ module.exports.generateResetToken = async (email, host) => {
   }
 };
 
-
-
 module.exports.resetPassword = async (resetToken, newPassword) => {
-    try {
-        // Find user by the reset token and check if it's not expired
-        const user = await CreateUser.findOne({
-            resetPasswordToken: resetToken,
-            resetPasswordExpires: { $gt: Date.now() }
-        });
+  try {
+    // Find user by the reset token and check if it's not expired
+    const user = await CreateUser.findOne({
+      resetPasswordToken: resetToken,
+      resetPasswordExpires: { $gt: Date.now() },
+    });
 
-        if (!user) {
-            throw new Error('Password reset token is invalid or has expired');
-        }
-
-        // Hash the new password
-        const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
-        user.password = hashedPassword; // Update the password
-        user.resetPasswordToken = undefined; // Clear reset token
-        user.resetPasswordExpires = undefined; // Clear expiration
-
-        // Save the updated user
-        await user.save();
-        return { message: 'Password has been reset' };
-    } catch (err) {
-        throw new Error('Error resetting password: ' + err.message);
+    if (!user) {
+      throw new Error("Password reset token is invalid or has expired");
     }
-}
 
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+    user.password = hashedPassword; // Update the password
+    user.resetPasswordToken = undefined; // Clear reset token
+    user.resetPasswordExpires = undefined; // Clear expiration
 
+    // Save the updated user
+    await user.save();
+    return { message: "Password has been reset" };
+  } catch (err) {
+    throw new Error("Error resetting password: " + err.message);
+  }
+};
 
 // Add CreateUser
 module.exports.addCreateUser = async (createUserForm) => {
   try {
-    // Hash the password before saving
+    const existingUser = await CreateUser.findOne({
+      email: createUserForm.email,
+    });
+    if (existingUser) {
+      const error = new Error("Email already exists");
+      error.statusCode = 400;
+      throw error;
+    }
+
     const hashedPassword = await bcrypt.hash(
       createUserForm.password,
       saltRounds
     );
     createUserForm.password = hashedPassword;
+
     const newUser = await CreateUser.create(createUserForm);
-    return newUser; // Return the created user
+
+    const { password, ...userWithoutPassword } = newUser.toObject();
+    return userWithoutPassword;
   } catch (err) {
     throw new Error("Error creating user: " + err.message);
   }
@@ -132,7 +137,6 @@ module.exports.addCreateUser = async (createUserForm) => {
 module.exports.updateCreateUser = async (createUserId, createUserForm) => {
   try {
     if (createUserForm.password) {
-      // Hash the new password before saving
       const hashedPassword = await bcrypt.hash(
         createUserForm.password,
         saltRounds
@@ -145,9 +149,9 @@ module.exports.updateCreateUser = async (createUserId, createUserForm) => {
       createUserForm,
       { new: true }
     );
-    return updatedUser; // Return the updated user
+    return updatedUser;
   } catch (err) {
-    throw new Error("Error updating user: " + err.message);
+    throw new Error("" + err.message);
   }
 };
 
@@ -156,38 +160,43 @@ module.exports.loginUser = async (email, password) => {
   try {
     const user = await CreateUser.findOne({ email });
     if (!user) {
-      throw new Error("User not found");
+      const error = new Error("Incorrect email");
+      error.statusCode = 400;
+      throw error;
     }
-    // Compare provided password with the hashed password in the database
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      throw new Error("Invalid credentials");
+      const error = new Error("Invalid password");
+      error.statusCode = 401;
+      throw error;
     }
-    return user; // Return user data if credentials are valid
+
+    return user;
   } catch (err) {
-    throw new Error("Error logging in: " + err.message);
+    err.message = "" + err.message;
+    throw err;
   }
 };
 
-
 module.exports.updatePassword = async (userId, oldPassword, newPassword) => {
-    try {
-        // Find the user by ID
-        const user = await CreateUser.findById(userId);
-        if (!user) {
-            throw new Error("User not found");
-        }
-        // Compare the old password with the hashed password in the database
-        const isMatch = await bcrypt.compare(oldPassword, user.password);
-        if (!isMatch) {
-            throw new Error("Old password is incorrect");
-        }
-        // Hash the new password and update it
-        const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
-        user.password = hashedPassword;
-        await user.save();
-        return { message: "Password updated successfully" };
-    } catch (err) {
-        throw new Error("Error updating password: " + err.message);
+  try {
+    // Find the user by ID
+    const user = await CreateUser.findById(userId);
+    if (!user) {
+      throw new Error("User not found");
     }
+    // Compare the old password with the hashed password in the database
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+    if (!isMatch) {
+      throw new Error("Old password is incorrect");
+    }
+    // Hash the new password and update it
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+    user.password = hashedPassword;
+    await user.save();
+    return { message: "Password updated successfully" };
+  } catch (err) {
+    throw new Error("Error updating password: " + err.message);
+  }
 };

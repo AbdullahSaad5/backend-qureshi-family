@@ -1052,7 +1052,7 @@ const getPersonWithFamily = async (req, res) => {
         },
       })
       .populate({
-        path: "spouseIds", // Populate the spouseIds field
+        path: "spouseIds",
         select: "name",
       })
       .populate("mother", "name")

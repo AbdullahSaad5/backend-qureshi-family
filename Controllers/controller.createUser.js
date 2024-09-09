@@ -68,7 +68,7 @@ module.exports.generateResetToken = async (email, host) => {
       text:
         `You are receiving this email because you requested a password reset for your account.\n\n` +
         `Please click on the following link, or paste it into your browser, to complete the process:\n\n` +
-        `http://localhost:3000/NewPassword/${resetToken}\n\n` +
+        `https://qureshi-family.vercel.app/NewPassword/${resetToken}\n\n` +
         `If you did not request this, please ignore this email.\n`,
     };
 

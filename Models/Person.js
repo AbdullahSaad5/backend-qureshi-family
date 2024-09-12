@@ -3,13 +3,6 @@ const Schema = mongoose.Schema;
 
 const personSchema = new Schema(
   {
-    // key: { type: String, required: true },
-    // n: { type: String, required: true },
-    // s: { type: String, enum: ["M", "F"], required: true },
-    // m: { type: String },
-    // f: { type: String },
-    // spouse: { type: [String] },
-    // t: { type: String },
     name: {
       type: String,
       required: true,

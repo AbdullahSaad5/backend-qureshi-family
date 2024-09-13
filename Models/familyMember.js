@@ -36,7 +36,7 @@ const personSchema = new Schema({
   status: {
     type: String,
     enum: ["pending", "approved", "rejected"],
-    default: "approved",
+    default: "pending",
   },
 
   // Replacing the `parents` field with `father` and `mother`
@@ -74,6 +74,10 @@ const personSchema = new Schema({
     type: String,
   },
   isProminentFigure: {
+    type: Boolean,
+    default: false,
+  },
+  blocked: {
     type: Boolean,
     default: false,
   },

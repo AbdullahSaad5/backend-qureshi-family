@@ -28,6 +28,8 @@ router.post("/addPerson", familyController.addPerson);
 router.post("/members/:parentId/children/:childId", familyController.addChildById);
 
 router.put("/addChildApprov/:childID", familyController.childAdditionRequest);
+router.put("/addChildDec/:childID", familyController.childAddRequestDecline);
+
 
 router.post("/addChild", familyController.addChild);
 
@@ -43,6 +45,9 @@ router.get("/searchbyname/:name", familyController.searchPersonByName);
 router.get("/getFamilyDetails/:id", familyController.getPersonWithFamily);
 
 router.get("/searchbyusername/:name", familyController.searchUserByName);
+
+
+router.get("/openSearch", familyController.openSearch);
 
 router.post("/addSpouse", familyController.addSpouse);
 

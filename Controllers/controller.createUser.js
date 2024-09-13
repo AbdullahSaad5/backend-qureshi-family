@@ -221,6 +221,10 @@ module.exports.updateProfile = async (userID, updates) => {
       user.fullName = updates.fullName;
     }
 
+    if(updates.gender){
+      user.gender = updates.gender;
+    }
+
     // Save the updated user
     await user.save();
 

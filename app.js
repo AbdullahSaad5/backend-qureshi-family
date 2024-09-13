@@ -7,7 +7,7 @@ const createUserRoutes = require("./Routes/route.createUser");
 const app = express();
 const connectDB = require("./Config/db");
 const cors = require("cors");
-const {generateDummyFamily} = require("./helpers/generateDummyDataa");
+const { generateDummyFamily } = require("./helpers/generateDummyDataa");
 const { addData } = require("./helper");
 
 const startServer = async () => {
@@ -21,7 +21,6 @@ const startServer = async () => {
 
     app.use("/api", familyRoutes);
     app.use("/api", createUserRoutes);
-
 
     // Start server
     const PORT = process.env.PORT || 8080;

@@ -89,52 +89,31 @@ const createPerson = async (req, res) => {
     const savedPerson = await newPerson.save();
 
     if (parents.length) {
-      await Person.updateMany(
-        { _id: { $in: parents } },
-        { $addToSet: { children: savedPerson._id } }
-      );
+      await Person.updateMany({ _id: { $in: parents } }, { $addToSet: { children: savedPerson._id } });
     }
 
     if (validSpouses.length) {
-      await Person.updateMany(
-        { _id: { $in: validSpouses } },
-        { $addToSet: { spouseIds: savedPerson._id } }
-      );
+      await Person.updateMany({ _id: { $in: validSpouses } }, { $addToSet: { spouseIds: savedPerson._id } });
     }
 
     if (children.length) {
-      await Person.updateMany(
-        { _id: { $in: children } },
-        { $addToSet: { parents: savedPerson._id } }
-      );
+      await Person.updateMany({ _id: { $in: children } }, { $addToSet: { parents: savedPerson._id } });
     }
 
     if (siblings.length) {
-      await Person.updateMany(
-        { _id: { $in: siblings } },
-        { $addToSet: { siblings: savedPerson._id } }
-      );
+      await Person.updateMany({ _id: { $in: siblings } }, { $addToSet: { siblings: savedPerson._id } });
     }
 
     if (stepParents.length) {
-      await Person.updateMany(
-        { _id: { $in: stepParents } },
-        { $addToSet: { stepChildren: savedPerson._id } }
-      );
+      await Person.updateMany({ _id: { $in: stepParents } }, { $addToSet: { stepChildren: savedPerson._id } });
     }
 
     if (stepChildren.length) {
-      await Person.updateMany(
-        { _id: { $in: stepChildren } },
-        { $addToSet: { stepParents: savedPerson._id } }
-      );
+      await Person.updateMany({ _id: { $in: stepChildren } }, { $addToSet: { stepParents: savedPerson._id } });
     }
 
     if (halfSiblings.length) {
-      await Person.updateMany(
-        { _id: { $in: halfSiblings } },
-        { $addToSet: { halfSiblings: savedPerson._id } }
-      );
+      await Person.updateMany({ _id: { $in: halfSiblings } }, { $addToSet: { halfSiblings: savedPerson._id } });
     }
 
     res.status(201).json(savedPerson);
@@ -165,12 +144,8 @@ const transformFamilyData = (members) => {
       key: member._id.toString(),
       n: member.name,
       s: getGender(member.gender),
-      m: member.parents
-        .find((parent) => parent.gender === "female")
-        ?._id.toString(),
-      f: member.parents
-        .find((parent) => parent.gender === "male")
-        ?._id.toString(),
+      m: member.parents.find((parent) => parent.gender === "female")?._id.toString(),
+      f: member.parents.find((parent) => parent.gender === "male")?._id.toString(),
       spouse: spouseIds.length ? spouseIds[0] : undefined,
     };
   };
@@ -183,9 +158,7 @@ const transformFamilyData = (members) => {
 const getFamilyTrees = async (req, res) => {
   try {
     // Fetch all family members from the database and populate relationships
-    const members = await Person.find({ status: "approved" }).populate(
-      "spouseIds father mother children"
-    );
+    const members = await Person.find({ status: "approved" }).populate("spouseIds father mother children");
 
     // Format data according to the structure needed by React Flow
     const familyTree = members.map((member) => {
@@ -200,14 +173,10 @@ const getFamilyTrees = async (req, res) => {
         mother: member.mother ? member.mother._id : null,
 
         // Populate spouseIds correctly (already an array)
-        spouseIds: member.spouseIds
-          ? member.spouseIds.map((spouse) => spouse._id)
-          : [],
+        spouseIds: member.spouseIds ? member.spouseIds.map((spouse) => spouse._id) : [],
 
         // Populate childrenIds array with child IDs
-        childrenIds: member.children
-          ? member.children.map((child) => child._id)
-          : [],
+        childrenIds: member.children ? member.children.map((child) => child._id) : [],
       };
     });
 
@@ -224,9 +193,7 @@ const getFamilyTreeById = async (req, res) => {
     const { id } = req.params;
 
     // Fetch the specific person by ID and populate relationships
-    const person = await Person.findById(id).populate(
-      "spouseIds father mother children"
-    );
+    const person = await Person.findById(id).populate("spouseIds father mother children");
 
     if (!person) {
       return res.status(404).json({ message: "Person not found" });
@@ -240,16 +207,8 @@ const getFamilyTreeById = async (req, res) => {
       dateOfBirth: member.dateOfBirth,
       father: member.father ? member.father._id : null,
       mother: member.mother ? member.mother._id : null,
-      spouseIds: isChild
-        ? undefined
-        : member.spouseIds
-        ? member.spouseIds.map((spouse) => spouse._id)
-        : [],
-      childrenIds: isChild
-        ? undefined
-        : member.children
-        ? member.children.map((child) => child._id)
-        : [],
+      spouseIds: isChild ? undefined : member.spouseIds ? member.spouseIds.map((spouse) => spouse._id) : [],
+      childrenIds: isChild ? undefined : member.children ? member.children.map((child) => child._id) : [],
     });
 
     // Format the specific person
@@ -259,20 +218,14 @@ const getFamilyTreeById = async (req, res) => {
     if (person.father) familyTree.push(formatMember(person.father));
     if (person.mother) familyTree.push(formatMember(person.mother));
     if (person.spouseIds) {
-      person.spouseIds.forEach((spouse) =>
-        familyTree.push(formatMember(spouse))
-      );
+      person.spouseIds.forEach((spouse) => familyTree.push(formatMember(spouse)));
     }
     if (person.children) {
-      person.children.forEach((child) =>
-        familyTree.push(formatMember(child, true))
-      );
+      person.children.forEach((child) => familyTree.push(formatMember(child, true)));
     }
 
     const uniqueFamilyTree = familyTree.filter(
-      (person, index, self) =>
-        index ===
-        self.findIndex((p) => p._id.toString() === person._id.toString())
+      (person, index, self) => index === self.findIndex((p) => p._id.toString() === person._id.toString())
     );
 
     // Return the formatted family tree data
@@ -472,9 +425,7 @@ const addPerson = async (req, res) => {
     // Check if a person with the same key already exists
     const existingPerson = await Person.findOne({ key });
     if (existingPerson) {
-      return res
-        .status(400)
-        .json({ message: "Person with this key already exists." });
+      return res.status(400).json({ message: "Person with this key already exists." });
     }
 
     // Create a new person
@@ -491,9 +442,7 @@ const addPerson = async (req, res) => {
     // Save the person to the database
     await newPerson.save();
 
-    res
-      .status(201)
-      .json({ message: "Person added successfully", person: newPerson });
+    res.status(201).json({ message: "Person added successfully", person: newPerson });
   } catch (error) {
     console.error("Error adding person:", error);
     res.status(500).json({ message: "Server error" });
@@ -822,13 +771,10 @@ const updatePerson = async (req, res) => {
       .populate("stepChildren")
       .populate("halfSiblings");
 
-    if (!updatedPerson)
-      return res.status(404).json({ error: "Person not found" });
+    if (!updatedPerson) return res.status(404).json({ error: "Person not found" });
     res.json(updatedPerson);
   } catch (error) {
-    res
-      .status(500)
-      .json({ error: "Error updating person", details: error.message });
+    res.status(500).json({ error: "Error updating person", details: error.message });
   }
 };
 
@@ -839,47 +785,23 @@ const deletePerson = async (req, res) => {
     // Find the person to be deleted
     const personToDelete = await Person.findById(id);
 
-    if (!personToDelete)
-      return res.status(404).json({ error: "Person not found" });
+    if (!personToDelete) return res.status(404).json({ error: "Person not found" });
 
     // Remove references to this person in other documents
-    await Person.updateMany(
-      { _id: { $in: personToDelete.parents } },
-      { $pull: { children: id } }
-    );
-    await Person.updateMany(
-      { _id: { $in: personToDelete.children } },
-      { $pull: { parents: id } }
-    );
-    await Person.updateMany(
-      { _id: { $in: personToDelete.siblings } },
-      { $pull: { siblings: id } }
-    );
-    await Person.updateMany(
-      { _id: personToDelete.spouse },
-      { $unset: { spouse: "" } }
-    );
-    await Person.updateMany(
-      { _id: { $in: personToDelete.stepParents } },
-      { $pull: { stepChildren: id } }
-    );
-    await Person.updateMany(
-      { _id: { $in: personToDelete.stepChildren } },
-      { $pull: { stepParents: id } }
-    );
-    await Person.updateMany(
-      { _id: { $in: personToDelete.halfSiblings } },
-      { $pull: { halfSiblings: id } }
-    );
+    await Person.updateMany({ _id: { $in: personToDelete.parents } }, { $pull: { children: id } });
+    await Person.updateMany({ _id: { $in: personToDelete.children } }, { $pull: { parents: id } });
+    await Person.updateMany({ _id: { $in: personToDelete.siblings } }, { $pull: { siblings: id } });
+    await Person.updateMany({ _id: personToDelete.spouse }, { $unset: { spouse: "" } });
+    await Person.updateMany({ _id: { $in: personToDelete.stepParents } }, { $pull: { stepChildren: id } });
+    await Person.updateMany({ _id: { $in: personToDelete.stepChildren } }, { $pull: { stepParents: id } });
+    await Person.updateMany({ _id: { $in: personToDelete.halfSiblings } }, { $pull: { halfSiblings: id } });
 
     // Finally, delete the person
     await Person.findByIdAndDelete(id);
 
     res.json({ message: "Person deleted successfully" });
   } catch (error) {
-    res
-      .status(500)
-      .json({ error: "Error deleting person", details: error.message });
+    res.status(500).json({ error: "Error deleting person", details: error.message });
   }
 };
 
@@ -943,9 +865,7 @@ const addChild = async (req, res) => {
 
     // Verify that the mother is in the father's spouseIds array
     if (!father.spouseIds.includes(motherId)) {
-      return res
-        .status(400)
-        .json({ message: "Mother is not a spouse of the father" });
+      return res.status(400).json({ message: "Mother is not a spouse of the father" });
     }
 
     // Create the new child
@@ -1001,15 +921,7 @@ const addChild = async (req, res) => {
   }
 };
 
-const createAndSaveChild = async ({
-  father,
-  motherId,
-  childName,
-  childGender,
-  childDOB,
-  spouse,
-  res,
-}) => {
+const createAndSaveChild = async ({ father, motherId, childName, childGender, childDOB, spouse, res }) => {
   try {
     let mother = null;
 
@@ -1477,9 +1389,7 @@ const addSpouse = async (req, res) => {
     res.json({ message: "Spouse added successfully", spouse: savedSpouse });
   } catch (error) {
     // Handle any errors
-    res
-      .status(500)
-      .json({ error: "Error adding spouse", details: error.message });
+    res.status(500).json({ error: "Error adding spouse", details: error.message });
   }
 };
 
@@ -1489,9 +1399,7 @@ const searchPerson = async (req, res) => {
   console.log(name, dateOfBirth);
 
   if (!name) {
-    return res
-      .status(400)
-      .json({ error: "Name is required to perform search." });
+    return res.status(400).json({ error: "Name is required to perform search." });
   }
 
   try {
@@ -1504,21 +1412,15 @@ const searchPerson = async (req, res) => {
     console.log(searchCriteria);
 
     const people = await Person.find(searchCriteria)
-      .populate(
-        "parents children spouse siblings stepParents stepChildren halfSiblings"
-      )
+      .populate("parents children spouse siblings stepParents stepChildren halfSiblings")
       .exec();
 
     if (people.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No person found with the provided criteria." });
+      return res.status(404).json({ message: "No person found with the provided criteria." });
     }
 
     if (people.length > 1) {
-      return res
-        .status(200)
-        .json({ message: "Multiple people found.", data: people });
+      return res.status(200).json({ message: "Multiple people found.", data: people });
     }
 
     const person = people[0];
@@ -1526,9 +1428,7 @@ const searchPerson = async (req, res) => {
 
     res.status(200).json({ message: "Person found.", data: familyTree });
   } catch (error) {
-    res
-      .status(500)
-      .json({ error: "Error searching for person.", details: error.message });
+    res.status(500).json({ error: "Error searching for person.", details: error.message });
   }
 };
 
@@ -1585,7 +1485,7 @@ const makePublicFigure = async (req, res) => {
   if (!personExist) {
     return res.status(404).json({ error: "Person not found" });
   }
-  personExist.isProminentFigure = true;
+  personExist.isProminentFigure = personExist.isProminentFigure ? false : true;
   await personExist.save();
   res.json({ message: "Person made public" });
 };
@@ -1599,10 +1499,7 @@ const getAllPublicFigures = async (req, res) => {
     const limitNumber = parseInt(limit);
 
     // Fetch public figures with pagination
-    const publicFigures = await Person.find(
-      { isProminentFigure: true },
-      "name biography"
-    )
+    const publicFigures = await Person.find({ isProminentFigure: true }, "name biography")
       .skip((pageNumber - 1) * limitNumber) // Skip the previous pages' items
       .limit(limitNumber); // Limit the number of items to the requested limit
 
@@ -1621,12 +1518,9 @@ const getAllPublicFigures = async (req, res) => {
   }
 };
 
-
 const getAllPersons = async (req, res) => {
   try {
-    const persons = await Person.find().populate(
-      "father mother children spouseIds siblings"
-    );
+    const persons = await Person.find().populate("father mother children spouseIds siblings");
 
     res.status(200).json(persons);
   } catch (error) {
@@ -1659,8 +1553,7 @@ const openSearch = async (req, res) => {
     if (dateOfBirth) filter.dateOfBirth = new Date(dateOfBirth);
     if (dateOfDeath) filter.dateOfDeath = new Date(dateOfDeath);
     if (status) filter.status = status;
-    if (isProminentFigure)
-      filter.isProminentFigure = isProminentFigure === "true";
+    if (isProminentFigure) filter.isProminentFigure = isProminentFigure === "true";
 
     // Step 1: Handle childName if provided
     let personList = [];
@@ -1671,9 +1564,7 @@ const openSearch = async (req, res) => {
 
       // If no children found, return early
       if (!personList || personList.length === 0) {
-        return res
-          .status(404)
-          .json({ message: "No persons found matching the child name." });
+        return res.status(404).json({ message: "No persons found matching the child name." });
       }
 
       // Step 2: Handle fatherName if provided
@@ -1691,9 +1582,7 @@ const openSearch = async (req, res) => {
 
         // If no matches found, return early
         if (personList.length === 0) {
-          return res
-            .status(404)
-            .json({ message: "No persons found matching the father name." });
+          return res.status(404).json({ message: "No persons found matching the father name." });
         }
       }
 
@@ -1716,11 +1605,9 @@ const openSearch = async (req, res) => {
 
         // If no matches found, return early
         if (personList.length === 0) {
-          return res
-            .status(404)
-            .json({
-              message: "No persons found matching the grandfather name.",
-            });
+          return res.status(404).json({
+            message: "No persons found matching the grandfather name.",
+          });
         }
       }
     }
@@ -1731,25 +1618,19 @@ const openSearch = async (req, res) => {
       personList = await Person.find(filter, "name ID biography");
     } else {
       // If child name was provided, filter the list of found persons
-      personList = personList.filter((person) =>
-        Object.keys(filter).every((key) => filter[key] === person[key])
-      );
+      personList = personList.filter((person) => Object.keys(filter).every((key) => filter[key] === person[key]));
     }
 
     // Check if any persons were found
     if (!personList || personList.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No persons found matching the criteria." });
+      return res.status(404).json({ message: "No persons found matching the criteria." });
     }
 
     // Return the search results
     res.status(200).json(personList);
   } catch (error) {
     console.error("Error while searching persons:", error);
-    res
-      .status(500)
-      .json({ message: "Server error occurred while searching persons." });
+    res.status(500).json({ message: "Server error occurred while searching persons." });
   }
 };
 

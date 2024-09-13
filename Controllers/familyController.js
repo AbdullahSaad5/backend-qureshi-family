@@ -1487,7 +1487,9 @@ const makePublicFigure = async (req, res) => {
   }
   personExist.isProminentFigure = personExist.isProminentFigure ? false : true;
   await personExist.save();
-  res.json({ message: "Person made public" });
+  res.json({
+    message: personExist.isProminentFigure ? "Person is now a public figure" : "Person is no longer a public figure",
+  });
 };
 
 const getAllPublicFigures = async (req, res) => {

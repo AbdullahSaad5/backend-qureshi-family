@@ -253,7 +253,7 @@ const getFamilyTreeById = async (req, res) => {
 
 const updatedGetFamilyTreeById = async (req, res) => {
   try {
-    const isAdmin = req.params.isAdmin && req.params.isAdmin === "true" ? true : false;
+    const isAdmin = req.query.isAdmin && req.query.isAdmin === "true" ? true : false;
 
     const personId = req.params.id;
 

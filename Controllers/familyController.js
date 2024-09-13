@@ -262,14 +262,13 @@ const updatedGetFamilyTreeById = async (req, res) => {
       _id: { $in: [person.father, person.mother] },
     }).lean();
 
-    console.log("Parents:", parents);
-
     parents.forEach((parent) => {
       if (parent.gender === "male") {
         parent.spouseIds = [person.mother];
       } else {
         parent.spouseIds = [person.father];
       }
+      parent.relationship = "parent";
     });
 
     const spouses = await Person.find({
@@ -281,6 +280,7 @@ const updatedGetFamilyTreeById = async (req, res) => {
       spouse.father = null;
       spouse.mother = null;
       spouse.spouseIds = [personId];
+      spouse.relationship = "spouse";
     });
 
     // Get grandparents
@@ -291,35 +291,18 @@ const updatedGetFamilyTreeById = async (req, res) => {
         _id: {
           $in: parents.map((parent) => parent.father).concat(parents.map((parent) => parent.mother)),
         },
-        // $or: [
-        //   { _id: person.father?.father },
-        //   { _id: person.father?.mother },
-        //   { _id: person.mother?.father },
-        //   { _id: person.mother?.mother },
-        // ],
       }).lean();
-      person.father = person.father._id;
-      person.mother = person.mother._id;
     }
 
-    console.log("Grandparents:", grandparents);
-
+    const grandParentIds = grandparents.map((grandparent) => grandparent._id.toString());
     grandparents.forEach((grandparent) => {
       grandparent.children = [];
       grandparent.father = null;
       grandparent.mother = null;
-      if (grandparent._id == person.father?.father) {
-        grandparent.spouseIds = [person.father?.mother];
-      }
-      if (grandparent._id == person.father?.mother) {
-        grandparent.spouseIds = [person.father?.father];
-      }
-      if (grandparent._id == person.mother?.father) {
-        grandparent.spouseIds = [person.mother?.mother];
-      }
-      if (grandparent._id == person.mother?.mother) {
-        grandparent.spouseIds = [person.mother?.father];
-      }
+      grandparent.spouseIds = grandparent.spouseIds.filter((spouseId) => {
+        return grandParentIds.includes(spouseId.toString());
+      });
+      grandparent.relationship = "grandparent";
     });
 
     // Get siblings
@@ -337,6 +320,7 @@ const updatedGetFamilyTreeById = async (req, res) => {
     siblings.forEach((sibling) => {
       sibling.children = [];
       sibling.spouseIds = [];
+      sibling.relationship = "sibling";
     });
 
     // Get children
@@ -347,6 +331,7 @@ const updatedGetFamilyTreeById = async (req, res) => {
 
     children.forEach((child) => {
       child.children = [];
+      child.relationship = "child";
     });
 
     // Get grandchildren
@@ -358,6 +343,7 @@ const updatedGetFamilyTreeById = async (req, res) => {
     grandchildren.forEach((grandchild) => {
       grandchild.children = [];
       grandchild.spouseIds = [];
+      grandchild.relationship = "grandchild";
     });
 
     const spousesOfChildren = await Person.find({
@@ -372,6 +358,7 @@ const updatedGetFamilyTreeById = async (req, res) => {
       spouse.father = null;
       spouse.mother = null;
       spouse.spouseIds = [];
+      spouse.relationship = "spouseOfChild";
     });
 
     // Add all the family members in a single array

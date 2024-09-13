@@ -38,6 +38,8 @@ router.post(
 );
 
 router.put("/addChildApprov/:childID", familyController.childAdditionRequest);
+router.put("/addChildDec/:childID", familyController.childAddRequestDecline);
+
 
 router.post("/addChild", familyController.addChild);
 

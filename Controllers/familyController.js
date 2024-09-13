@@ -1396,6 +1396,32 @@ const childAdditionRequest = async (req, res) => {
   }
 };
 
+const childAddRequestDecline = async (req, res) => {
+  const { childID } = req.params;
+
+  try {
+    const childExist = await Person.findById(childID);
+
+    if (!childExist) {
+      return res.status(404).json({ error: "Child not found" });
+    }
+
+    childExist.status = "rejected";
+
+    await childExist.save();
+
+    return res.json({
+      message: "Child add request decline successfully",
+    });
+  } catch (error) {
+    console.error("Error processing child addition request:", error);
+    res.status(500).json({
+      error: "Error processing child addition request",
+      details: error.message,
+    });
+  }
+};
+
 const getPendingChildAdditionRequests = async (req, res) => {
   try {
     const pendingRequests = await Person.find({ status: "pending" });
@@ -1559,23 +1585,42 @@ const makePublicFigure = async (req, res) => {
   if (!personExist) {
     return res.status(404).json({ error: "Person not found" });
   }
-  personExist.isPublic = true;
+  personExist.isProminentFigure = true;
   await personExist.save();
   res.json({ message: "Person made public" });
 };
 
 const getAllPublicFigures = async (req, res) => {
   try {
+    const { page = 1, limit = 10 } = req.query; // Default to page 1, limit 10
+
+    // Convert page and limit to numbers
+    const pageNumber = parseInt(page);
+    const limitNumber = parseInt(limit);
+
+    // Fetch public figures with pagination
     const publicFigures = await Person.find(
       { isProminentFigure: true },
       "name biography"
-    );
+    )
+      .skip((pageNumber - 1) * limitNumber) // Skip the previous pages' items
+      .limit(limitNumber); // Limit the number of items to the requested limit
 
-    res.status(200).json(publicFigures);
+    // Get the total count for pagination metadata
+    const total = await Person.countDocuments({ isProminentFigure: true });
+
+    res.status(200).json({
+      total,
+      page: pageNumber,
+      totalPages: Math.ceil(total / limitNumber),
+      limit: limitNumber,
+      publicFigures,
+    });
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch public figures", error });
   }
 };
+
 
 const getAllPersons = async (req, res) => {
   try {
@@ -1614,4 +1659,5 @@ module.exports = {
   searchPersonByName,
   getPersonWithFamily,
   searchUserByName,
+  childAddRequestDecline,
 };

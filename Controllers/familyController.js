@@ -213,16 +213,25 @@ const getFamilyTreeById = async (req, res) => {
       return res.status(404).json({ message: "Person not found" });
     }
 
-    // Helper function to format a member
-    const formatMember = (member) => ({
+    // Helper function to format a member, excluding spouseIds and childrenIds for children
+    const formatMember = (member, isChild = false) => ({
       _id: member._id,
       name: member.name,
       gender: member.gender,
       dateOfBirth: member.dateOfBirth,
       father: member.father ? member.father._id : null,
       mother: member.mother ? member.mother._id : null,
-      spouseIds: member.spouseIds ? member.spouseIds.map((spouse) => spouse._id) : [],
-      childrenIds: member.children ? member.children.map((child) => child._id) : [],
+
+      spouseIds: isChild
+        ? undefined
+        : member.spouseIds
+        ? member.spouseIds.map((spouse) => spouse._id)
+        : [],
+      childrenIds: isChild
+        ? undefined
+        : member.children
+        ? member.children.map((child) => child._id)
+        : [],
     });
 
     // Format the specific person
@@ -235,11 +244,19 @@ const getFamilyTreeById = async (req, res) => {
       person.spouseIds.forEach((spouse) => familyTree.push(formatMember(spouse)));
     }
     if (person.children) {
-      person.children.forEach((child) => familyTree.push(formatMember(child)));
+      person.children.forEach((child) =>
+        familyTree.push(formatMember(child, true))
+      );
     }
 
+    const uniqueFamilyTree = familyTree.filter(
+      (person, index, self) =>
+        index ===
+        self.findIndex((p) => p._id.toString() === person._id.toString())
+    );
+
     // Return the formatted family tree data
-    res.json(familyTree);
+    res.json(uniqueFamilyTree);
   } catch (error) {
     console.error("Error fetching family tree:", error);
     res.status(500).json({ message: "Error fetching family tree" });

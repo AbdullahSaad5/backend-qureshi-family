@@ -1635,6 +1635,124 @@ const getAllPersons = async (req, res) => {
   }
 };
 
+const openSearch = async (req, res) => {
+  try {
+    const {
+      biography,
+      gender,
+      dateOfBirth,
+      dateOfDeath,
+      status,
+      isProminentFigure,
+      fatherName,
+      motherName,
+      childName,
+      grandfatherName,
+      grandmotherName,
+    } = req.query;
+
+    let filter = {};
+
+    // Add basic filters
+    if (biography) filter.biography = { $regex: biography, $options: "i" };
+    if (gender) filter.gender = gender;
+    if (dateOfBirth) filter.dateOfBirth = new Date(dateOfBirth);
+    if (dateOfDeath) filter.dateOfDeath = new Date(dateOfDeath);
+    if (status) filter.status = status;
+    if (isProminentFigure)
+      filter.isProminentFigure = isProminentFigure === "true";
+
+    // Step 1: Handle childName if provided
+    let personList = [];
+    if (childName) {
+      personList = await Person.find({
+        name: { $regex: childName, $options: "i" },
+      });
+
+      // If no children found, return early
+      if (!personList || personList.length === 0) {
+        return res
+          .status(404)
+          .json({ message: "No persons found matching the child name." });
+      }
+
+      // Step 2: Handle fatherName if provided
+      if (fatherName) {
+        personList = await Promise.all(
+          personList.map(async (child) => {
+            const father = await Person.findOne({
+              _id: child.father,
+              name: { $regex: fatherName, $options: "i" },
+            });
+            return father ? child : null;
+          })
+        );
+        personList = personList.filter((child) => child !== null);
+
+        // If no matches found, return early
+        if (personList.length === 0) {
+          return res
+            .status(404)
+            .json({ message: "No persons found matching the father name." });
+        }
+      }
+
+      // Step 3: Handle grandfatherName if provided
+      if (grandfatherName) {
+        personList = await Promise.all(
+          personList.map(async (child) => {
+            const father = await Person.findById(child.father);
+            if (father) {
+              const grandfather = await Person.findOne({
+                _id: father.father,
+                name: { $regex: grandfatherName, $options: "i" },
+              });
+              return grandfather ? child : null;
+            }
+            return null;
+          })
+        );
+        personList = personList.filter((child) => child !== null);
+
+        // If no matches found, return early
+        if (personList.length === 0) {
+          return res
+            .status(404)
+            .json({
+              message: "No persons found matching the grandfather name.",
+            });
+        }
+      }
+    }
+
+    // Additional filtering on top of family relationships (other parameters)
+    if (personList.length === 0) {
+      // If no child name was provided, we search directly by other filters
+      personList = await Person.find(filter, "name ID biography");
+    } else {
+      // If child name was provided, filter the list of found persons
+      personList = personList.filter((person) =>
+        Object.keys(filter).every((key) => filter[key] === person[key])
+      );
+    }
+
+    // Check if any persons were found
+    if (!personList || personList.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No persons found matching the criteria." });
+    }
+
+    // Return the search results
+    res.status(200).json(personList);
+  } catch (error) {
+    console.error("Error while searching persons:", error);
+    res
+      .status(500)
+      .json({ message: "Server error occurred while searching persons." });
+  }
+};
+
 module.exports = {
   getAllPersons,
   createPerson,
@@ -1660,4 +1778,5 @@ module.exports = {
   getPersonWithFamily,
   searchUserByName,
   childAddRequestDecline,
+  openSearch,
 };

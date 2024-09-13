@@ -223,70 +223,239 @@ const getFamilyTreeById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Fetch the person by ID and populate relationships
-    const person = await Person.findById(id)
-      .populate("father mother spouseIds children siblings")
-      .exec();
+    // Fetch the specific person by ID and populate relationships
+    const person = await Person.findById(id).populate(
+      "spouseIds father mother children"
+    );
 
     if (!person) {
       return res.status(404).json({ message: "Person not found" });
     }
 
-    // Helper function to format person details
-    const formatPerson = (person) => ({
-      _id: person._id,
-      name: person.name,
-      gender: person.gender,
-      dateOfBirth: person.dateOfBirth,
-      dateOfDeath: person.dateOfDeath,
-      father: person.father ? person.father._id : null,
-      mother: person.mother ? person.mother._id : null,
-      spouseIds: person.spouseIds
-        ? person.spouseIds.map((spouse) => spouse._id)
+    // Helper function to format a member
+    const formatMember = (member) => ({
+      _id: member._id,
+      name: member.name,
+      gender: member.gender,
+      dateOfBirth: member.dateOfBirth,
+      father: member.father ? member.father._id : null,
+      mother: member.mother ? member.mother._id : null,
+      spouseIds: member.spouseIds
+        ? member.spouseIds.map((spouse) => spouse._id)
         : [],
-      childrenIds: person.children
-        ? person.children.map((child) => child._id)
+      childrenIds: member.children
+        ? member.children.map((child) => child._id)
         : [],
     });
 
-    // Collect all family members in a set to avoid duplicates
-    const familyMembers = new Set();
+    // Format the specific person
+    const familyTree = [formatMember(person)];
 
-    // Add the main person
-    familyMembers.add(formatPerson(person));
-
-    // Add father and mother
-    if (person.father) familyMembers.add(formatPerson(person.father));
-    if (person.mother) familyMembers.add(formatPerson(person.mother));
-
-    // Add spouses
+    // Add the related family members (father, mother, spouse, children)
+    if (person.father) familyTree.push(formatMember(person.father));
+    if (person.mother) familyTree.push(formatMember(person.mother));
     if (person.spouseIds) {
       person.spouseIds.forEach((spouse) =>
-        familyMembers.add(formatPerson(spouse))
+        familyTree.push(formatMember(spouse))
       );
     }
-
-    // Add children
     if (person.children) {
-      person.children.forEach((child) =>
-        familyMembers.add(formatPerson(child))
-      );
+      person.children.forEach((child) => familyTree.push(formatMember(child)));
     }
 
-    // Add siblings
-    if (person.siblings) {
-      person.siblings.forEach((sibling) =>
-        familyMembers.add(formatPerson(sibling))
-      );
-    }
-
-    // Convert Set to Array and return
-    res.json(Array.from(familyMembers));
+    // Return the formatted family tree data
+    res.json(familyTree);
   } catch (error) {
     console.error("Error fetching family tree:", error);
     res.status(500).json({ message: "Error fetching family tree" });
   }
 };
+
+
+// const getFamilyTreeById = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+
+//     const pipeline = [
+//       { $match: { _id: new mongoose.Types.ObjectId(id) } },
+//       {
+//         $lookup: {
+//           from: "people",
+//           localField: "father",
+//           foreignField: "_id",
+//           as: "father",
+//         },
+//       },
+//       {
+//         $lookup: {
+//           from: "people",
+//           localField: "mother",
+//           foreignField: "_id",
+//           as: "mother",
+//         },
+//       },
+//       {
+//         $lookup: {
+//           from: "people",
+//           localField: "spouseIds",
+//           foreignField: "_id",
+//           as: "spouseIds",
+//         },
+//       },
+//       {
+//         $lookup: {
+//           from: "people",
+//           localField: "children",
+//           foreignField: "_id",
+//           as: "children",
+//         },
+//       },
+//       {
+//         $unwind: { path: "$father", preserveNullAndEmptyArrays: true },
+//       },
+//       {
+//         $unwind: { path: "$mother", preserveNullAndEmptyArrays: true },
+//       },
+//       {
+//         $addFields: {
+//           "father.childrenIds": {
+//             $map: { input: "$father.children", as: "child", in: "$$child._id" },
+//           },
+//           "father.spouseIds": {
+//             $map: {
+//               input: "$father.spouseIds",
+//               as: "spouse",
+//               in: "$$spouse._id",
+//             },
+//           },
+//           "mother.childrenIds": {
+//             $map: { input: "$mother.children", as: "child", in: "$$child._id" },
+//           },
+//           "mother.spouseIds": {
+//             $map: {
+//               input: "$mother.spouseIds",
+//               as: "spouse",
+//               in: "$$spouse._id",
+//             },
+//           },
+//           childrenIds: {
+//             $map: { input: "$children", as: "child", in: "$$child._id" },
+//           },
+//           spouseIds: {
+//             $map: { input: "$spouseIds", as: "spouse", in: "$$spouse._id" },
+//           },
+//         },
+//       },
+//       {
+//         $project: {
+//           _id: 1,
+//           name: 1,
+//           gender: 1,
+//           dateOfBirth: 1,
+//           father: {
+//             _id: "$father._id",
+//             name: "$father.name",
+//             gender: "$father.gender",
+//             dateOfBirth: "$father.dateOfBirth",
+//             childrenIds: "$father.childrenIds",
+//             spouseIds: "$father.spouseIds",
+//           },
+//           mother: {
+//             _id: "$mother._id",
+//             name: "$mother.name",
+//             gender: "$mother.gender",
+//             dateOfBirth: "$mother.dateOfBirth",
+//             childrenIds: "$mother.childrenIds",
+//             spouseIds: "$mother.spouseIds",
+//           },
+//           spouseIds: 1,
+//           childrenIds: 1,
+//         },
+//       },
+//     ];
+
+//     const result = await Person.aggregate(pipeline).exec();
+
+//     if (result.length === 0) {
+//       return res.status(404).json({ message: "Person not found" });
+//     }
+
+//     // Flatten the result and include each person
+//     const personMap = new Map();
+
+//     const addPerson = (person) => {
+//       if (!person) return; // Skip if person is null or undefined
+
+//       const personId = person._id ? person._id.toString() : null;
+//       if (!personId) return; // Skip if personId is null or undefined
+
+//       if (!personMap.has(personId)) {
+//         personMap.set(personId, {
+//           _id: personId,
+//           name: person.name,
+//           gender: person.gender,
+//           dateOfBirth: person.dateOfBirth,
+//           father: person.father
+//             ? {
+//                 _id: person.father._id ? person.father._id.toString() : null,
+//                 name: person.father.name,
+//                 gender: person.father.gender,
+//                 dateOfBirth: person.father.dateOfBirth,
+//                 childrenIds: person.father.childrenIds || [],
+//                 spouseIds: person.father.spouseIds || [],
+//               }
+//             : null,
+//           mother: person.mother
+//             ? {
+//                 _id: person.mother._id ? person.mother._id.toString() : null,
+//                 name: person.mother.name,
+//                 gender: person.mother.gender,
+//                 dateOfBirth: person.mother.dateOfBirth,
+//                 childrenIds: person.mother.childrenIds || [],
+//                 spouseIds: person.mother.spouseIds || [],
+//               }
+//             : null,
+//           spouseIds:
+//             (person.spouseIds || []).map((id) => (id ? id.toString() : null)) ||
+//             [],
+//           childrenIds:
+//             (person.childrenIds || []).map((id) =>
+//               id ? id.toString() : null
+//             ) || [],
+//         });
+//       }
+//     };
+
+//     result.forEach((person) => {
+//       addPerson(person);
+
+//       if (person.father) {
+//         addPerson(person.father);
+//       }
+//       if (person.mother) {
+//         addPerson(person.mother);
+//       }
+//       (person.childrenIds || []).forEach((childId) => {
+//         addPerson({ _id: childId });
+//       });
+//       (person.spouseIds || []).forEach((spouseId) => {
+//         addPerson({ _id: spouseId });
+//       });
+//     });
+
+//     // Convert the map to an array
+//     const persons = Array.from(personMap.values());
+
+//     // Return the formatted family tree data
+//     res.json(persons);
+//   } catch (error) {
+//     console.error("Error fetching family tree:", error);
+//     res.status(500).json({ message: "Error fetching family tree" });
+//   }
+// };
+
+
+
 
 const addPerson = async (req, res) => {
   try {
@@ -744,7 +913,7 @@ const addChild = async (req, res) => {
     tribe,
     about,
     ID,
-    address
+    address,
   } = req.body;
 
   try {
@@ -780,7 +949,7 @@ const addChild = async (req, res) => {
       mother: motherId,
       tribe: tribe || "",
       biography: about || "",
-      ID:ID || "",
+      ID: ID || "",
       address: address || "",
     });
     const savedChild = await newChild.save();
@@ -918,7 +1087,7 @@ const createAndSaveChild = async ({
   }
 };
 
-// -------------Searchable select API -----------------
+// -------------Searchable select API Males only -----------------
 
 const searchPersonByName = async (req, res) => {
   const { name } = req.params;
@@ -932,6 +1101,42 @@ const searchPersonByName = async (req, res) => {
       .populate("father", "name")
       .select("name tribe dateOfBirth mother father _id");
 
+    if (people.length === 0) {
+      return res.status(200).json({
+        message: "No matching persons found",
+        people: [],
+      });
+    }
+
+    // Format the response to include mother and father names
+    const formattedPeople = people.map((person) => ({
+      _id: person._id,
+      name: person.name,
+      tribe: person.tribe || "Unknown Tribe",
+      dateOfBirth: person.dateOfBirth,
+      mother: person.mother ? person.mother.name : "Unknown Mother",
+      father: person.father ? person.father.name : "Unknown Father",
+    }));
+
+    res.status(200).json(formattedPeople);
+  } catch (error) {
+    console.error("Error fetching persons:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// -------------Searchable select API all users  -----------------
+
+const searchUserByName = async (req, res) => {
+  const { name } = req.params;
+
+  try {
+    const people = await Person.find({
+      name: new RegExp(name, "i"),
+    })
+      .populate("mother", "name")
+      .populate("father", "name")
+      .select("name tribe dateOfBirth mother father _id");
     if (people.length === 0) {
       return res.status(200).json({
         message: "No matching persons found",
@@ -976,7 +1181,7 @@ const getPersonWithFamily = async (req, res) => {
         select: "name",
       })
       .populate("mother", "name")
-      .select("name dateOfBirth father mother");
+      .select("name dateOfBirth father mother gender");
 
     if (!person) {
       return res.status(404).json({ message: "Person not found" });
@@ -995,6 +1200,7 @@ const getPersonWithFamily = async (req, res) => {
       grandfather: person.father?.father ? person.father.father.name : null,
       grandmother: person.father?.mother ? person.father.mother.name : null,
       spouses: spouses.length > 0 ? spouses : null,
+      gender: person.gender,
     };
 
     res.status(200).json(responseData);
@@ -1200,9 +1406,10 @@ const getPendingChildAdditionRequests = async (req, res) => {
 };
 
 const addSpouse = async (req, res) => {
-  const { personId, spouseName, spouseDOB, SpouseGender } = req.body;
+  const { userID, spouseName, spouseDOB, spouseGender } = req.body;
 
-  if (!personId || !spouseName || !spouseDOB || !SpouseGender) {
+  // Validate the input fields
+  if (!userID || !spouseName || !spouseDOB || !spouseGender) {
     return res.status(400).json({ error: "Missing required fields" });
   }
 
@@ -1211,29 +1418,31 @@ const addSpouse = async (req, res) => {
     const newSpouse = new Person({
       name: spouseName,
       dateOfBirth: new Date(spouseDOB),
-      gender: SpouseGender,
-      // Additional fields as needed
+      gender: spouseGender,
     });
 
-    // Save the new spouse
+    // Save the new spouse document
     const savedSpouse = await newSpouse.save();
 
-    // 2. Update the original Person document to include the new spouse
-    const person = await Person.findById(personId);
+    // 2. Find the original person by ID
+    const person = await Person.findById(userID);
 
     if (!person) {
       return res.status(404).json({ error: "Person not found" });
     }
 
+    // 3. Add the spouse ID to the person's spouseIds array
     person.spouseIds.push(savedSpouse._id);
     await person.save();
 
-    // 3. Update the new spouse to include the original person
+    // 4. Add the person's ID to the spouse's spouseIds array
     savedSpouse.spouseIds.push(person._id);
     await savedSpouse.save();
 
+    // Respond with success
     res.json({ message: "Spouse added successfully", spouse: savedSpouse });
   } catch (error) {
+    // Handle any errors
     res
       .status(500)
       .json({ error: "Error adding spouse", details: error.message });
@@ -1396,4 +1605,5 @@ module.exports = {
   getFamilyTreeById,
   searchPersonByName,
   getPersonWithFamily,
+  searchUserByName,
 };

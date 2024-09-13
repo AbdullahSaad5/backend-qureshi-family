@@ -51,6 +51,9 @@ router.get("/searchbyname/:name", familyController.searchPersonByName);
 
 router.get("/getFamilyDetails/:id", familyController.getPersonWithFamily);
 
+router.get("/searchbyusername/:name", familyController.searchUserByName);
+
+
 
 
 

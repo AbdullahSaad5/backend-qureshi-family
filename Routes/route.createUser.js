@@ -186,7 +186,7 @@ router.post("/update_password", async (req, res) => {
 
 router.post("/update_profile", async (req, res) => {
   try {
-    const { userID, contact, fullName } = req.body;
+    const { userID, contact, fullName, gender } = req.body;
 
     // Validate input
     if (!userID) {
@@ -196,11 +196,19 @@ router.post("/update_profile", async (req, res) => {
       });
     }
 
-    // Call the updateProfile function
-    const result = await createUser.updateProfile(userID, {
+    // Prepare the update data
+    const updateData = {
       contact,
       fullName,
-    });
+    };
+
+    // Add gender to the update data only if it's present
+    if (gender) {
+      updateData.gender = gender;
+    }
+
+    // Call the updateProfile function
+    const result = await createUser.updateProfile(userID, updateData);
 
     return res.json({
       message: result.message,
@@ -214,5 +222,6 @@ router.post("/update_profile", async (req, res) => {
     });
   }
 });
+
 
 module.exports = router;

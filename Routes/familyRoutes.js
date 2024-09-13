@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const familyController = require("../Controllers/familyController");
-
+const Person = require("../Models/familyMember");
 
 // router.post("/signup", familyController.signup);
 
@@ -14,11 +14,9 @@ router.put("/members/:id", familyController.updatePerson);
 router.delete("/members/:id", familyController.deletePerson);
 
 router.get("/members/:id", familyController.getPersonById);
-
 router.get("/members", familyController.getFamilyTrees);
 
 router.get("/getAllMembers", familyController.getAllPersons);
-
 
 router.get("/getPendingReq", familyController.getPendingChildAdditionRequests);
 
@@ -28,14 +26,7 @@ router.post("/counter/:no", familyController.postCounter);
 
 router.post("/addPerson", familyController.addPerson);
 
-
-
-
-
-router.post(
-  "/members/:parentId/children/:childId",
-  familyController.addChildById
-);
+router.post("/members/:parentId/children/:childId", familyController.addChildById);
 
 router.put("/addChildApprov/:childID", familyController.childAdditionRequest);
 
@@ -45,19 +36,14 @@ router.post("/makePublicFigure/:personId", familyController.makePublicFigure);
 
 router.get("/getAllPublicFigures", familyController.getAllPublicFigures);
 
-router.get("/getTreeById/:id", familyController.getFamilyTreeById);
+// router.get("/getTreeById/:id", familyController.getFamilyTreeById);
+router.get("/getTreeById/:id", familyController.updatedGetFamilyTreeById);
 
 router.get("/searchbyname/:name", familyController.searchPersonByName);
 
 router.get("/getFamilyDetails/:id", familyController.getPersonWithFamily);
 
 router.get("/searchbyusername/:name", familyController.searchUserByName);
-
-
-
-
-
-
 
 router.post("/addSpouse", familyController.addSpouse);
 

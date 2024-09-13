@@ -222,16 +222,8 @@ const getFamilyTreeById = async (req, res) => {
       father: member.father ? member.father._id : null,
       mother: member.mother ? member.mother._id : null,
 
-      spouseIds: isChild
-        ? undefined
-        : member.spouseIds
-        ? member.spouseIds.map((spouse) => spouse._id)
-        : [],
-      childrenIds: isChild
-        ? undefined
-        : member.children
-        ? member.children.map((child) => child._id)
-        : [],
+      spouseIds: isChild ? undefined : member.spouseIds ? member.spouseIds.map((spouse) => spouse._id) : [],
+      childrenIds: isChild ? undefined : member.children ? member.children.map((child) => child._id) : [],
     });
 
     // Format the specific person
@@ -244,15 +236,11 @@ const getFamilyTreeById = async (req, res) => {
       person.spouseIds.forEach((spouse) => familyTree.push(formatMember(spouse)));
     }
     if (person.children) {
-      person.children.forEach((child) =>
-        familyTree.push(formatMember(child, true))
-      );
+      person.children.forEach((child) => familyTree.push(formatMember(child, true)));
     }
 
     const uniqueFamilyTree = familyTree.filter(
-      (person, index, self) =>
-        index ===
-        self.findIndex((p) => p._id.toString() === person._id.toString())
+      (person, index, self) => index === self.findIndex((p) => p._id.toString() === person._id.toString())
     );
 
     // Return the formatted family tree data
@@ -265,17 +253,23 @@ const getFamilyTreeById = async (req, res) => {
 
 const updatedGetFamilyTreeById = async (req, res) => {
   try {
+    const isAdmin = req.params.isAdmin && req.params.isAdmin === "true" ? true : false;
+
     const personId = req.params.id;
 
     // Fetch the person and populate immediate family
-    const person = await Person.findOne({ _id: personId, status: "approved" }).lean();
+    const person = await Person.findOne({
+      _id: personId,
+      //  status: "approved"
+      status: isAdmin ? { $in: ["pending", "approved", "rejected"] } : "approved",
+    }).lean();
 
     if (!person) {
       return res.status(404).json({ message: "Person not found" });
     }
 
     const parents = await Person.find({
-      status: "approved",
+      status: isAdmin ? { $in: ["pending", "approved", "rejected"] } : "approved",
       _id: { $in: [person.father, person.mother] },
     }).lean();
 
@@ -289,7 +283,7 @@ const updatedGetFamilyTreeById = async (req, res) => {
     });
 
     const spouses = await Person.find({
-      status: "approved",
+      status: isAdmin ? { $in: ["pending", "approved", "rejected"] } : "approved",
       $or: [{ _id: { $in: person.spouseIds } }, { spouseIds: { $in: [personId] } }],
     }).lean();
 
@@ -304,7 +298,7 @@ const updatedGetFamilyTreeById = async (req, res) => {
     let grandparents = [];
     if (person.father && person.mother) {
       grandparents = await Person.find({
-        status: "approved",
+        status: isAdmin ? { $in: ["pending", "approved", "rejected"] } : "approved",
         _id: {
           $in: parents.map((parent) => parent.father).concat(parents.map((parent) => parent.mother)),
         },
@@ -327,7 +321,7 @@ const updatedGetFamilyTreeById = async (req, res) => {
 
     if (person.father && person.mother) {
       siblings = await Person.find({
-        status: "approved",
+        status: isAdmin ? { $in: ["pending", "approved", "rejected"] } : "approved",
         father: person.father,
         mother: person.mother,
         _id: { $ne: personId },
@@ -342,7 +336,7 @@ const updatedGetFamilyTreeById = async (req, res) => {
 
     // Get children
     const children = await Person.find({
-      status: "approved",
+      status: isAdmin ? { $in: ["pending", "approved", "rejected"] } : "approved",
       $or: [{ father: personId }, { mother: personId }],
     }).lean();
 
@@ -353,7 +347,7 @@ const updatedGetFamilyTreeById = async (req, res) => {
 
     // Get grandchildren
     const grandchildren = await Person.find({
-      status: "approved",
+      status: isAdmin ? { $in: ["pending", "approved", "rejected"] } : "approved",
       $or: [{ father: children.map((child) => child._id) }, { mother: children.map((child) => child._id) }],
     }).lean();
 
@@ -364,7 +358,7 @@ const updatedGetFamilyTreeById = async (req, res) => {
     });
 
     const spousesOfChildren = await Person.find({
-      status: "approved",
+      status: isAdmin ? { $in: ["pending", "approved", "rejected"] } : "approved",
       $or: [
         { _id: { $in: children.map((child) => child.spouseIds).flat() } },
         { spouseIds: { $in: children.map((child) => child._id) } },

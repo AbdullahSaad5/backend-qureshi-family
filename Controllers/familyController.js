@@ -787,17 +787,27 @@ const deletePerson = async (req, res) => {
 
     if (!personToDelete) return res.status(404).json({ error: "Person not found" });
 
-    // Remove references to this person in other documents
-    await Person.updateMany({ _id: { $in: personToDelete.parents } }, { $pull: { children: id } });
-    await Person.updateMany({ _id: { $in: personToDelete.children } }, { $pull: { parents: id } });
-    await Person.updateMany({ _id: { $in: personToDelete.siblings } }, { $pull: { siblings: id } });
-    await Person.updateMany({ _id: personToDelete.spouse }, { $unset: { spouse: "" } });
-    await Person.updateMany({ _id: { $in: personToDelete.stepParents } }, { $pull: { stepChildren: id } });
-    await Person.updateMany({ _id: { $in: personToDelete.stepChildren } }, { $pull: { stepParents: id } });
-    await Person.updateMany({ _id: { $in: personToDelete.halfSiblings } }, { $pull: { halfSiblings: id } });
+    // Check if person has children, if so, return an error
+    const children = await Person.find({ $or: [{ father: id }, { mother: id }], blocked: false });
+    if (children.length > 0) {
+      return res.status(400).json({ error: "Cannot delete a person with children" });
+    }
 
-    // Finally, delete the person
-    await Person.findByIdAndDelete(id);
+    personToDelete.blocked = true;
+    await personToDelete.save();
+
+    // // Remove references to this person in other documents
+    // await Person.updateMany({ _id: personToDelete.father }, { $pull: { children: id } });
+    // await Person.updateMany({ _id: personToDelete.mother }, { $pull: { children: id } });
+    // await Person.updateMany({ _id: { $in: personToDelete.children } }, { $pull: { parents: id } });
+    // await Person.updateMany({ _id: { $in: personToDelete.siblings } }, { $pull: { siblings: id } });
+    // await Person.updateMany({ _id: personToDelete.spouse }, { $unset: { spouse: "" } });
+    // await Person.updateMany({ _id: { $in: personToDelete.stepParents } }, { $pull: { stepChildren: id } });
+    // await Person.updateMany({ _id: { $in: personToDelete.stepChildren } }, { $pull: { stepParents: id } });
+    // await Person.updateMany({ _id: { $in: personToDelete.halfSiblings } }, { $pull: { halfSiblings: id } });
+
+    // // Finally, delete the person
+    // await Person.findByIdAndDelete(id);
 
     res.json({ message: "Person deleted successfully" });
   } catch (error) {

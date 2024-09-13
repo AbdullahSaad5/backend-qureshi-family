@@ -77,6 +77,10 @@ const personSchema = new Schema({
     type: Boolean,
     default: false,
   },
+  blocked: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const Person = mongoose.model("Person", personSchema);

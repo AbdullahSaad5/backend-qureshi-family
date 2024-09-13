@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
 const familyController = require("../Controllers/familyController");
-const Person = require("../Models/familyMember");
 
 // router.post("/signup", familyController.signup);
 

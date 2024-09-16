@@ -164,6 +164,13 @@ module.exports.loginUser = async (email, password) => {
       error.statusCode = 400;
       throw error;
     }
+    console.log(user);
+
+    if (user.isBlocked) {
+      const error = new Error("Your profile is blocked");
+      error.statusCode = 403;
+      throw error;
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
@@ -203,7 +210,6 @@ module.exports.updatePassword = async (userId, oldPassword, newPassword) => {
   }
 };
 
-
 module.exports.updateProfile = async (userID, updates) => {
   try {
     const user = await CreateUser.findById(userID);
@@ -221,7 +227,7 @@ module.exports.updateProfile = async (userID, updates) => {
       user.fullName = updates.fullName;
     }
 
-    if(updates.gender){
+    if (updates.gender) {
       user.gender = updates.gender;
     }
 

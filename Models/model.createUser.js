@@ -33,6 +33,15 @@ const createUserSchema = new schema({
     type: Date,
     default: Date.now,
   },
+  status:{
+    type: String,
+    enum: ['active', 'blocked'],
+    default: 'active'
+  },
+  isBlocked: {
+    type: Boolean,
+    default: false,
+  }
 });
 
 // Create the model

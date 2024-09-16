@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const createUser = require("../Controllers/controller.createUser");
+const User = require("../Models/model.createUser");
 
 // Add CreateUser
 router.post("/createUser/add", async (req, res) => {
@@ -223,5 +224,42 @@ router.post("/update_profile", async (req, res) => {
   }
 });
 
+router.put("/updatestatus", async (req, res) => {
+  try {
+    const { userID, status } = req.body;
+
+    if (!userID || !status) {
+      return res
+        .status(400)
+        .json({ message: "User ID and status are required" });
+    }
+
+    console.log(userID);
+
+    const user = await User.findById(userID);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.status = status;
+
+    if (status === "active") {
+      user.isBlocked = false;
+    } else {
+      user.isBlocked = true;
+    }
+
+    await user.save();
+
+    return res
+      .status(200)
+      .json({ message: "User status updated successfully", user });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: "An error occurred", error: error.message });
+  }
+});
 
 module.exports = router;

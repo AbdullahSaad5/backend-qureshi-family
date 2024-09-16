@@ -946,37 +946,43 @@ const deletePerson = async (req, res) => {
     // Find the person to be deleted
     const personToDelete = await Person.findById(id);
 
-    if (!personToDelete) return res.status(404).json({ error: "Person not found" });
+    if (!personToDelete)
+      return res.status(404).json({ error: "Person not found" });
+
     // Remove references to this person in other documents
-    await Person.updateMany({ _id: { $in: personToDelete.parents } }, { $pull: { children: id } });
-    await Person.updateMany({ _id: { $in: personToDelete.children } }, { $pull: { parents: id } });
-    await Person.updateMany({ _id: { $in: personToDelete.siblings } }, { $pull: { siblings: id } });
-    await Person.updateMany({ _id: personToDelete.spouse }, { $unset: { spouse: "" } });
-    await Person.updateMany({ _id: { $in: personToDelete.stepParents } }, { $pull: { stepChildren: id } });
-    await Person.updateMany({ _id: { $in: personToDelete.stepChildren } }, { $pull: { stepParents: id } });
-    await Person.updateMany({ _id: { $in: personToDelete.halfSiblings } }, { $pull: { halfSiblings: id } });
+    await Person.updateMany(
+      { _id: personToDelete.father },
+      { $pull: { children: id } }
+    );
+    await Person.updateMany(
+      { _id: personToDelete.mother },
+      { $pull: { children: id } }
+    );
+    await Person.updateMany(
+      { _id: { $in: personToDelete.children } },
+      { $unset: { father: "", mother: "" } }
+    );
+    await Person.updateMany(
+      { _id: { $in: personToDelete.siblings } },
+      { $pull: { siblings: id } }
+    );
+    await Person.updateMany(
+      { _id: { $in: personToDelete.spouseIds } },
+      { $pull: { spouseIds: id } }
+    );
 
-    personToDelete.blocked = true;
-    await personToDelete.save();
+    await Person.findByIdAndDelete(id);
 
-    // // Remove references to this person in other documents
-    // await Person.updateMany({ _id: personToDelete.father }, { $pull: { children: id } });
-    // await Person.updateMany({ _id: personToDelete.mother }, { $pull: { children: id } });
-    // await Person.updateMany({ _id: { $in: personToDelete.children } }, { $pull: { parents: id } });
-    // await Person.updateMany({ _id: { $in: personToDelete.siblings } }, { $pull: { siblings: id } });
-    // await Person.updateMany({ _id: personToDelete.spouse }, { $unset: { spouse: "" } });
-    // await Person.updateMany({ _id: { $in: personToDelete.stepParents } }, { $pull: { stepChildren: id } });
-    // await Person.updateMany({ _id: { $in: personToDelete.stepChildren } }, { $pull: { stepParents: id } });
-    // await Person.updateMany({ _id: { $in: personToDelete.halfSiblings } }, { $pull: { halfSiblings: id } });
-
-    // // Finally, delete the person
-    // await Person.findByIdAndDelete(id);
-
-    res.json({ message: "Person deleted successfully" });
+    res.json({
+      message: "Person deleted successfully",
+    });
   } catch (error) {
-    res.status(500).json({ error: "Error deleting person", details: error.message });
+    res
+      .status(500)
+      .json({ error: "Error deleting person", details: error.message });
   }
 };
+
 
 const addChildById = async (req, res) => {
   const { parentId, childId } = req.params;

@@ -8,7 +8,7 @@ const familyController = require("../Controllers/familyController");
 
 router.post("/members", familyController.createPerson);
 
-router.put("/members/:id", familyController.updatePerson);
+router.put("/members/:userID", familyController.updatePerson);
 
 router.delete("/members/:id", familyController.deletePerson);
 

@@ -41,6 +41,10 @@ const createUserSchema = new schema({
   isBlocked: {
     type: Boolean,
     default: false,
+  },
+  isAdmin: {
+    type: Boolean,
+    default: false,
   }
 });
 

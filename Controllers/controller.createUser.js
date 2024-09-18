@@ -212,29 +212,26 @@ module.exports.updatePassword = async (userId, oldPassword, newPassword) => {
 
 module.exports.updateProfile = async (userID, updates) => {
   try {
-    const user = await CreateUser.findById(userID);
+    // Default values for isBlocked based on isActive
+    if (updates.isActive === "active") {
+      updates.isBlocked = false;
+    } else if (updates.isActive === "blocked") {
+      updates.isBlocked = true;
+    }
+
+    // Use findByIdAndUpdate to update the user document
+    const user = await CreateUser.findByIdAndUpdate(userID, updates, {
+      new: true, // Return the updated document
+      runValidators: true, // Run schema validation
+    });
+
     if (!user) {
       const error = new Error("User not found");
       error.statusCode = 404;
       throw error;
     }
 
-    // Update fields if they are provided
-    if (updates.contact) {
-      user.contact = updates.contact;
-    }
-    if (updates.fullName) {
-      user.fullName = updates.fullName;
-    }
-
-    if (updates.gender) {
-      user.gender = updates.gender;
-    }
-
-    // Save the updated user
-    await user.save();
-
-    return { message: "Profile updated successfully" };
+    return { message: "Profile updated successfully", data: user };
   } catch (err) {
     err.message = "" + err.message;
     throw err;

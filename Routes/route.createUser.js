@@ -213,7 +213,11 @@ router.post("/update_profile", async (req, res) => {
     user.contact = contact || user.contact;
     user.fullName = fullName || user.fullName;
     user.status = status || user.status;
-    user.isAdmin = isAdmin !== undefined ? isAdmin : user.isAdmin;
+    if (isAdmin === "true") {
+      user.isAdmin = true;
+    } else {
+      user.isAdmin = false;
+    }
     user.isBlocked = isBlocked;
 
     // Save the updated user

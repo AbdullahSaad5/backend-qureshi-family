@@ -13,6 +13,7 @@ router.put("/members/:userID", familyController.updatePerson);
 router.delete("/members/:id", familyController.deletePerson);
 
 router.get("/members/:id", familyController.getPersonById);
+
 router.get("/members", familyController.getFamilyTrees);
 
 router.get("/getAllMembers", familyController.getAllPersons);

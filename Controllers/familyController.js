@@ -182,27 +182,12 @@ const transformFamilyData = (members) => {
 
 // const getFamilyTrees = async (req, res) => {
 //   try {
-//     // const members = await Person.find({ status: "approved" });
 //     const members = await Person.aggregate([
-//       {
-//         $match: { status: "approved" },
-//       },
+//       { $match: { status: "approved" } },
 //       {
 //         $addFields: {
-//           father: {
-//             $cond: {
-//               if: "$father",
-//               then: "$father",
-//               else: null,
-//             },
-//           },
-//           mother: {
-//             $cond: {
-//               if: "$mother",
-//               then: "$mother",
-//               else: null,
-//             },
-//           },
+//           father: { $cond: { if: "$father", then: "$father", else: null } },
+//           mother: { $cond: { if: "$mother", then: "$mother", else: null } },
 //           spouseIds: {
 //             $cond: {
 //               if: { $isArray: "$spouseIds" },
@@ -219,7 +204,69 @@ const transformFamilyData = (members) => {
 //           },
 //         },
 //       },
+//       {
+//         $lookup: {
+//           from: "people",
+//           localField: "father",
+//           foreignField: "_id",
+//           as: "fatherInfo",
+//         },
+//       },
+//       {
+//         $lookup: {
+//           from: "people",
+//           localField: "fatherInfo.father",
+//           foreignField: "_id",
+//           as: "grandfatherInfo",
+//         },
+//       },
+//       {
+//         $lookup: {
+//           from: "people",
+//           localField: "grandfatherInfo.father",
+//           foreignField: "_id",
+//           as: "greatGrandfatherInfo",
+//         },
+//       },
+//       {
+//         $addFields: {
+//           ancestorChain: {
+//             $reduce: {
+//               input: [
+//                 { $arrayElemAt: ["$greatGrandfatherInfo.name", 0] },
+//                 { $arrayElemAt: ["$grandfatherInfo.name", 0] },
+//                 { $arrayElemAt: ["$fatherInfo.name", 0] },
+//                 "$name",
+//               ],
+//               initialValue: "",
+//               in: {
+//                 $cond: [
+//                   {
+//                     $and: [{ $ne: ["$$this", null] }, { $ne: ["$$this", ""] }],
+//                   },
+//                   {
+//                     $cond: [
+//                       { $eq: ["$$value", ""] },
+//                       "$$this",
+//                       { $concat: ["$$value", " > ", "$$this"] },
+//                     ],
+//                   },
+//                   "$$value",
+//                 ],
+//               },
+//             },
+//           },
+//         },
+//       },
+//       {
+//         $project: {
+//           fatherInfo: 0,
+//           grandfatherInfo: 0,
+//           greatGrandfatherInfo: 0,
+//         },
+//       },
 //     ]);
+
 //     res.json(members);
 //   } catch (error) {
 //     console.error("Error fetching family members:", error);
@@ -280,25 +327,52 @@ const getFamilyTrees = async (req, res) => {
           ancestorChain: {
             $reduce: {
               input: [
-                { $arrayElemAt: ["$greatGrandfatherInfo.name", 0] },
-                { $arrayElemAt: ["$grandfatherInfo.name", 0] },
-                { $arrayElemAt: ["$fatherInfo.name", 0] },
-                "$name",
+                {
+                  name: { $arrayElemAt: ["$greatGrandfatherInfo.name", 0] },
+                  id: { $arrayElemAt: ["$greatGrandfatherInfo._id", 0] },
+                },
+                {
+                  name: { $arrayElemAt: ["$grandfatherInfo.name", 0] },
+                  id: { $arrayElemAt: ["$grandfatherInfo._id", 0] },
+                },
+                {
+                  name: { $arrayElemAt: ["$fatherInfo.name", 0] },
+                  id: { $arrayElemAt: ["$fatherInfo._id", 0] },
+                },
+                { name: "$name", id: "$_id" },
               ],
-              initialValue: "",
+              initialValue: [],
               in: {
                 $cond: [
                   {
-                    $and: [{ $ne: ["$$this", null] }, { $ne: ["$$this", ""] }],
+                    $and: [
+                      { $ne: ["$$this.name", null] },
+                      { $ne: ["$$this.id", null] },
+                    ],
                   },
                   {
-                    $cond: [
-                      { $eq: ["$$value", ""] },
-                      "$$this",
-                      { $concat: ["$$value", " > ", "$$this"] },
+                    $concatArrays: [
+                      "$$value",
+                      [{ name: "$$this.name", id: "$$this.id" }],
                     ],
                   },
                   "$$value",
+                ],
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          ancestorChain: {
+            $filter: {
+              input: "$ancestorChain",
+              as: "ancestor",
+              cond: {
+                $and: [
+                  { $ne: ["$$ancestor.name", ""] },
+                  { $ne: ["$$ancestor.id", null] },
                 ],
               },
             },
@@ -320,6 +394,8 @@ const getFamilyTrees = async (req, res) => {
     res.status(500).json({ message: "Error fetching family members" });
   }
 };
+
+
 
 
 const getFamilyTreeById = async (req, res) => {

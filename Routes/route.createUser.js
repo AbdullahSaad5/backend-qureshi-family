@@ -187,33 +187,42 @@ router.post("/update_password", async (req, res) => {
 
 router.post("/update_profile", async (req, res) => {
   try {
-    const { userID, contact, fullName, gender } = req.body;
+    const { userID, contact, fullName, status, isAdmin } = req.body;
 
-    // Validate input
+    // Validate required fields
     if (!userID) {
       return res.status(400).json({
-        message: "User ID is required",
+        message: "userID is required.",
         status: false,
       });
     }
 
-    // Prepare the update data
-    const updateData = {
-      contact,
-      fullName,
-    };
-
-    // Add gender to the update data only if it's present
-    if (gender) {
-      updateData.gender = gender;
+    // Fetch user from the database
+    const user = await User.findById(userID);
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found.",
+        status: false,
+      });
     }
 
-    // Call the updateProfile function
-    const result = await createUser.updateProfile(userID, updateData);
+    // Determine the value for isBlocked based on the status
+    const isBlocked = status === "blocked";
 
-    return res.json({
-      message: result.message,
+    // Update user fields
+    user.contact = contact || user.contact;
+    user.fullName = fullName || user.fullName;
+    user.status = status || user.status;
+    user.isAdmin = isAdmin !== undefined ? isAdmin : user.isAdmin;
+    user.isBlocked = isBlocked;
+
+    // Save the updated user
+    await user.save();
+
+    res.status(200).json({
+      message: "User profile updated successfully.",
       status: true,
+      user,
     });
   } catch (err) {
     console.error(err);

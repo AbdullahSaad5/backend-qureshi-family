@@ -109,6 +109,7 @@ module.exports.resetPassword = async (resetToken, newPassword) => {
 // Add CreateUser
 module.exports.addCreateUser = async (createUserForm) => {
   try {
+    // Check if a user with the same email already exists
     const existingUser = await CreateUser.findOne({
       email: createUserForm.email,
     });
@@ -118,20 +119,32 @@ module.exports.addCreateUser = async (createUserForm) => {
       throw error;
     }
 
+    // Hash the password before saving the user
     const hashedPassword = await bcrypt.hash(
       createUserForm.password,
       saltRounds
     );
     createUserForm.password = hashedPassword;
 
+    // If isAdmin is provided and it's "true", set isAdmin to true
+    if (createUserForm.isAdmin === "true") {
+      createUserForm.isAdmin = true;
+    } else {
+      createUserForm.isAdmin = false; // Explicitly setting it to false if not provided
+    }
+
+    // Create a new user in the database
     const newUser = await CreateUser.create(createUserForm);
 
+    // Exclude the password from the returned user object
     const { password, ...userWithoutPassword } = newUser.toObject();
+
     return userWithoutPassword;
   } catch (err) {
     throw new Error("Error creating user: " + err.message);
   }
 };
+
 
 // Update CreateUser
 module.exports.updateCreateUser = async (createUserId, createUserForm) => {

@@ -395,9 +395,6 @@ const getFamilyTrees = async (req, res) => {
   }
 };
 
-
-
-
 const getFamilyTreeById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -462,179 +459,179 @@ const getFamilyTreeById = async (req, res) => {
   }
 };
 
-const updatedGetFamilyTreeById = async (req, res) => {
-  try {
-    const isAdmin =
-      req.query.isAdmin && req.query.isAdmin === "true" ? true : false;
+// const updatedGetFamilyTreeById = async (req, res) => {
+//   try {
+//     const isAdmin =
+//       req.query.isAdmin && req.query.isAdmin === "true" ? true : false;
 
-    const personId = req.params.id;
+//     const personId = req.params.id;
 
-    // Fetch the person and populate immediate family
-    const person = await Person.findOne({
-      _id: personId,
-      //  status: "approved"
-      status: isAdmin
-        ? { $in: ["pending", "approved", "rejected"] }
-        : "approved",
-    }).lean();
+//     // Fetch the person and populate immediate family
+//     const person = await Person.findOne({
+//       _id: personId,
+//       //  status: "approved"
+//       status: isAdmin
+//         ? { $in: ["pending", "approved", "rejected"] }
+//         : "approved",
+//     }).lean();
 
-    if (!person) {
-      return res.status(404).json({ message: "Person not found" });
-    }
+//     if (!person) {
+//       return res.status(404).json({ message: "Person not found" });
+//     }
 
-    const parents = await Person.find({
-      status: isAdmin
-        ? { $in: ["pending", "approved", "rejected"] }
-        : "approved",
-      _id: { $in: [person.father, person.mother] },
-    }).lean();
+//     const parents = await Person.find({
+//       status: isAdmin
+//         ? { $in: ["pending", "approved", "rejected"] }
+//         : "approved",
+//       _id: { $in: [person.father, person.mother] },
+//     }).lean();
 
-    parents.forEach((parent) => {
-      if (parent.gender === "male") {
-        parent.spouseIds = [person.mother];
-      } else {
-        parent.spouseIds = [person.father];
-      }
-      parent.relationship = "parent";
-    });
+//     parents.forEach((parent) => {
+//       if (parent.gender === "male") {
+//         parent.spouseIds = [person.mother];
+//       } else {
+//         parent.spouseIds = [person.father];
+//       }
+//       parent.relationship = "parent";
+//     });
 
-    const spouses = await Person.find({
-      status: isAdmin
-        ? { $in: ["pending", "approved", "rejected"] }
-        : "approved",
-      $or: [
-        { _id: { $in: person.spouseIds } },
-        { spouseIds: { $in: [personId] } },
-      ],
-    }).lean();
+//     const spouses = await Person.find({
+//       status: isAdmin
+//         ? { $in: ["pending", "approved", "rejected"] }
+//         : "approved",
+//       $or: [
+//         { _id: { $in: person.spouseIds } },
+//         { spouseIds: { $in: [personId] } },
+//       ],
+//     }).lean();
 
-    spouses.forEach((spouse) => {
-      spouse.father = null;
-      spouse.mother = null;
-      spouse.spouseIds = [personId];
-      spouse.relationship = "spouse";
-    });
+//     spouses.forEach((spouse) => {
+//       spouse.father = null;
+//       spouse.mother = null;
+//       spouse.spouseIds = [personId];
+//       spouse.relationship = "spouse";
+//     });
 
-    // Get grandparents
-    let grandparents = [];
-    if (person.father && person.mother) {
-      grandparents = await Person.find({
-        status: isAdmin
-          ? { $in: ["pending", "approved", "rejected"] }
-          : "approved",
-        _id: {
-          $in: parents
-            .map((parent) => parent.father)
-            .concat(parents.map((parent) => parent.mother)),
-        },
-      }).lean();
-    }
+//     // Get grandparents
+//     let grandparents = [];
+//     if (person.father && person.mother) {
+//       grandparents = await Person.find({
+//         status: isAdmin
+//           ? { $in: ["pending", "approved", "rejected"] }
+//           : "approved",
+//         _id: {
+//           $in: parents
+//             .map((parent) => parent.father)
+//             .concat(parents.map((parent) => parent.mother)),
+//         },
+//       }).lean();
+//     }
 
-    const grandParentIds = grandparents.map((grandparent) =>
-      grandparent._id.toString()
-    );
-    grandparents.forEach((grandparent) => {
-      grandparent.children = [];
-      grandparent.father = null;
-      grandparent.mother = null;
-      grandparent.spouseIds = grandparent.spouseIds.filter((spouseId) => {
-        return grandParentIds.includes(spouseId.toString());
-      });
-      grandparent.relationship = "grandparent";
-    });
+//     const grandParentIds = grandparents.map((grandparent) =>
+//       grandparent._id.toString()
+//     );
+//     grandparents.forEach((grandparent) => {
+//       grandparent.children = [];
+//       grandparent.father = null;
+//       grandparent.mother = null;
+//       grandparent.spouseIds = grandparent.spouseIds.filter((spouseId) => {
+//         return grandParentIds.includes(spouseId.toString());
+//       });
+//       grandparent.relationship = "grandparent";
+//     });
 
-    // Get siblings
-    let siblings = [];
+//     // Get siblings
+//     let siblings = [];
 
-    if (person.father && person.mother) {
-      siblings = await Person.find({
-        status: isAdmin
-          ? { $in: ["pending", "approved", "rejected"] }
-          : "approved",
-        father: person.father,
-        mother: person.mother,
-        _id: { $ne: personId },
-      }).lean();
-    }
+//     if (person.father && person.mother) {
+//       siblings = await Person.find({
+//         status: isAdmin
+//           ? { $in: ["pending", "approved", "rejected"] }
+//           : "approved",
+//         father: person.father,
+//         mother: person.mother,
+//         _id: { $ne: personId },
+//       }).lean();
+//     }
 
-    siblings.forEach((sibling) => {
-      sibling.children = [];
-      sibling.spouseIds = [];
-      sibling.relationship = "sibling";
-    });
+//     siblings.forEach((sibling) => {
+//       sibling.children = [];
+//       sibling.spouseIds = [];
+//       sibling.relationship = "sibling";
+//     });
 
-    // Get children
-    const children = await Person.find({
-      status: isAdmin
-        ? { $in: ["pending", "approved", "rejected"] }
-        : "approved",
-      $or: [{ father: personId }, { mother: personId }],
-    }).lean();
+//     // Get children
+//     const children = await Person.find({
+//       status: isAdmin
+//         ? { $in: ["pending", "approved", "rejected"] }
+//         : "approved",
+//       $or: [{ father: personId }, { mother: personId }],
+//     }).lean();
 
-    children.forEach((child) => {
-      child.children = [];
-      child.relationship = "child";
-    });
+//     children.forEach((child) => {
+//       child.children = [];
+//       child.relationship = "child";
+//     });
 
-    // Get grandchildren
-    const grandchildren = await Person.find({
-      status: isAdmin
-        ? { $in: ["pending", "approved", "rejected"] }
-        : "approved",
-      $or: [
-        { father: children.map((child) => child._id) },
-        { mother: children.map((child) => child._id) },
-      ],
-    }).lean();
+//     // Get grandchildren
+//     const grandchildren = await Person.find({
+//       status: isAdmin
+//         ? { $in: ["pending", "approved", "rejected"] }
+//         : "approved",
+//       $or: [
+//         { father: children.map((child) => child._id) },
+//         { mother: children.map((child) => child._id) },
+//       ],
+//     }).lean();
 
-    grandchildren.forEach((grandchild) => {
-      grandchild.children = [];
-      grandchild.spouseIds = [];
-      grandchild.relationship = "grandchild";
-    });
+//     grandchildren.forEach((grandchild) => {
+//       grandchild.children = [];
+//       grandchild.spouseIds = [];
+//       grandchild.relationship = "grandchild";
+//     });
 
-    const spousesOfChildren = await Person.find({
-      status: isAdmin
-        ? { $in: ["pending", "approved", "rejected"] }
-        : "approved",
-      $or: [
-        { _id: { $in: children.map((child) => child.spouseIds).flat() } },
-        { spouseIds: { $in: children.map((child) => child._id) } },
-      ],
-    }).lean();
+//     const spousesOfChildren = await Person.find({
+//       status: isAdmin
+//         ? { $in: ["pending", "approved", "rejected"] }
+//         : "approved",
+//       $or: [
+//         { _id: { $in: children.map((child) => child.spouseIds).flat() } },
+//         { spouseIds: { $in: children.map((child) => child._id) } },
+//       ],
+//     }).lean();
 
-    spousesOfChildren.forEach((spouse) => {
-      spouse.father = null;
-      spouse.mother = null;
-      spouse.spouseIds = [];
-      spouse.relationship = "spouseOfChild";
-    });
+//     spousesOfChildren.forEach((spouse) => {
+//       spouse.father = null;
+//       spouse.mother = null;
+//       spouse.spouseIds = [];
+//       spouse.relationship = "spouseOfChild";
+//     });
 
-    // Add all the family members in a single array
-    let familyMembers = [
-      person,
-      ...parents,
-      ...grandparents,
-      ...siblings,
-      ...children,
-      ...spouses,
-      ...grandchildren,
-      ...spousesOfChildren,
-    ];
+//     // Add all the family members in a single array
+//     let familyMembers = [
+//       person,
+//       ...parents,
+//       ...grandparents,
+//       ...siblings,
+//       ...children,
+//       ...spouses,
+//       ...grandchildren,
+//       ...spousesOfChildren,
+//     ];
 
-    let unqiueFamilyMembers = [];
-    familyMembers.forEach((member) => {
-      if (unqiueFamilyMembers.findIndex((x) => x._id == member._id) === -1) {
-        unqiueFamilyMembers.push(member);
-      }
-    });
+//     let unqiueFamilyMembers = [];
+//     familyMembers.forEach((member) => {
+//       if (unqiueFamilyMembers.findIndex((x) => x._id == member._id) === -1) {
+//         unqiueFamilyMembers.push(member);
+//       }
+//     });
 
-    res.json(unqiueFamilyMembers);
-  } catch (error) {
-    console.error("Error fetching family tree:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
+//     res.json(unqiueFamilyMembers);
+//   } catch (error) {
+//     console.error("Error fetching family tree:", error);
+//     res.status(500).json({ message: "Internal server error" });
+//   }
+// };
 
 // const getFamilyTreeById = async (req, res) => {
 //   try {
@@ -817,6 +814,168 @@ const updatedGetFamilyTreeById = async (req, res) => {
 //     res.status(500).json({ message: "Error fetching family tree" });
 //   }
 // };
+
+const updatedGetFamilyTreeById = async (req, res) => {
+  try {
+    const personId = req.params.id;
+
+    // Fetch the person by ID
+    const person = await Person.findOne({
+      _id: personId,
+      status: "approved", // Assuming only approved persons are accessible publicly
+    }).lean();
+
+    if (!person) {
+      return res.status(404).json({ message: "Person not found" });
+    }
+
+    // Famous personality (the person's name)
+    const response = {
+      famousPersonality: person.name,
+    };
+
+    // Helper function to fetch a person by their ID or return "Unknown"
+    const getPersonNameById = async (id) => {
+      if (!id) return "Unknown";
+      const individual = await Person.findOne({
+        _id: id,
+        status: "approved", // Publicly accessible
+      }).lean();
+      return individual ? individual.name : "Unknown";
+    };
+
+    // Fetch father and mother names
+    response.fatherName = await getPersonNameById(person.father);
+    response.motherName = await getPersonNameById(person.mother);
+
+    // Fetch grandparents
+    let father = person.father
+      ? await Person.findOne({ _id: person.father }).lean()
+      : null;
+    let mother = person.mother
+      ? await Person.findOne({ _id: person.mother }).lean()
+      : null;
+
+    // Mother's side (maternal grandparents and great-grandparents)
+    response.motherOfMother = mother
+      ? await getPersonNameById(mother.mother)
+      : "Unknown";
+    response.fatherOfMother = mother
+      ? await getPersonNameById(mother.father)
+      : "Unknown";
+
+    if (mother && mother.mother) {
+      let maternalGrandmother = await Person.findOne({
+        _id: mother.mother,
+      }).lean();
+      response.motherOfMotherOfMother = maternalGrandmother
+        ? await getPersonNameById(maternalGrandmother.mother)
+        : "Unknown";
+      response.fatherOfMotherOfMother = maternalGrandmother
+        ? await getPersonNameById(maternalGrandmother.father)
+        : "Unknown";
+    } else {
+      response.motherOfMotherOfMother = "Unknown";
+      response.fatherOfMotherOfMother = "Unknown";
+    }
+
+    // Father's side (paternal grandparents and great-grandparents)
+    response.fatherOfFather = father
+      ? await getPersonNameById(father.father)
+      : "Unknown";
+    response.motherOfFather = father
+      ? await getPersonNameById(father.mother)
+      : "Unknown";
+
+    if (father && father.father) {
+      let paternalGrandfather = await Person.findOne({
+        _id: father.father,
+      }).lean();
+      response.fatherOfFatherOfFather = paternalGrandfather
+        ? await getPersonNameById(paternalGrandfather.father)
+        : "Unknown";
+      response.motherOfFatherOfFather = paternalGrandfather
+        ? await getPersonNameById(paternalGrandfather.mother)
+        : "Unknown";
+    } else {
+      response.fatherOfFatherOfFather = "Unknown";
+      response.motherOfFatherOfFather = "Unknown";
+    }
+
+    // Fetch spouses' names
+    if (person.spouseIds && person.spouseIds.length > 0) {
+      const spouses = await Person.find({
+        _id: { $in: person.spouseIds },
+        status: "approved", // Publicly accessible
+      }).lean();
+
+      response.spouses = spouses.map((spouse) => spouse.name);
+    } else {
+      response.spouses = [];
+    }
+
+    // Fetch children's names
+    const children = await Person.find({
+      $or: [{ father: personId }, { mother: personId }],
+      status: "approved", // Publicly accessible
+    }).lean();
+
+    response.childrenNames = children.map((child) => child.name);
+
+    // Fetch sibling names
+    let siblings = [];
+    if (person.father && person.mother) {
+      siblings = await Person.find({
+        father: person.father,
+        mother: person.mother,
+        _id: { $ne: personId }, // Exclude the current person from siblings
+        status: "approved", // Publicly accessible
+      }).lean();
+    }
+
+    response.siblingNames =
+      siblings.length > 0 ? siblings.map((sibling) => sibling.name) : [];
+
+    // Fetch father's siblings names
+    if (father) {
+      const fatherSiblings = await Person.find({
+        father: father.father,
+        mother: father.mother,
+        _id: { $ne: father._id }, // Exclude father from siblings
+        status: "approved", // Publicly accessible
+      }).lean();
+      response.fatherSiblingNames =
+        fatherSiblings.length > 0
+          ? fatherSiblings.map((sibling) => sibling.name)
+          : [];
+    } else {
+      response.fatherSiblingNames = [];
+    }
+
+    // Fetch mother's siblings names
+    if (mother) {
+      const motherSiblings = await Person.find({
+        father: mother.father,
+        mother: mother.mother,
+        _id: { $ne: mother._id }, // Exclude mother from siblings
+        status: "approved", // Publicly accessible
+      }).lean();
+      response.motherSiblingNames =
+        motherSiblings.length > 0
+          ? motherSiblings.map((sibling) => sibling.name)
+          : [];
+    } else {
+      response.motherSiblingNames = [];
+    }
+
+    // Return the final response
+    res.json(response);
+  } catch (error) {
+    console.error("Error fetching deep family tree:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 
 const addPerson = async (req, res) => {
   try {

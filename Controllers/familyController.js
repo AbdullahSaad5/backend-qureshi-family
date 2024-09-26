@@ -995,8 +995,54 @@ const updatedGetFamilyTreeById = async (req, res) => {
   }
 };
 
+const getAncestorChain = async (req, res) => {
+  try {
+    const personId = req.params.id;
 
+    // Helper function to recursively fetch the ancestor chain
+    const fetchAncestors = async (personId) => {
+      const person = await Person.findById(personId).populate("father");
+      if (!person) return "";
 
+      // Recursively fetch father's ancestors
+      const ancestorChain = person.father
+        ? await fetchAncestors(person.father._id)
+        : "";
+
+      // Add current person name to the chain
+      return ancestorChain
+        ? `${ancestorChain} > ${person.name}`
+        : `${person.name}`;
+    };
+
+    // Fetch the person from the database
+    const person = await Person.findById(personId).populate("children");
+
+    // Handle case where person is not found
+    if (!person) {
+      return res.status(404).json({ message: "Person not found" });
+    }
+
+    // Get the ancestor chain (father, grandfather, etc.)
+    const ancestorChain = await fetchAncestors(personId);
+
+    // Get the names of the children
+    const childrenNames = person.children
+      .map((child) => child.name)
+      .join(" > ");
+
+    // Combine ancestor chain, person name, and children names
+    const fullChain = childrenNames
+      ? `${ancestorChain} > ${person.name} > ${childrenNames}`
+      : `${ancestorChain} > ${person.name}`;
+
+    // Send the response with the full ancestor and children chain
+    return res.status(200).json({ ancestorChain: fullChain });
+  } catch (error) {
+    console.error("Error fetching deep family tree:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 
 
@@ -2320,4 +2366,5 @@ module.exports = {
   childAddRequestDecline,
   openSearch,
   updatedGetFamilyTreeById,
+  getAncestorChain,
 };

@@ -47,6 +47,9 @@ router.get("/getFamilyDetails/:id", familyController.getPersonWithFamily);
 
 router.get("/searchbyusername/:name", familyController.searchUserByName);
 
+router.get("/getAncestorChain/:id", familyController.getAncestorChain);
+
+
 
 router.get("/openSearch", familyController.openSearch);
 

@@ -1109,8 +1109,12 @@ const getAncestorChain = async (req, res) => {
       // Recursively fetch ancestors of the parent if they exist
       const ancestorChain = parentId ? await fetchAncestors(parentId, side) : [];
 
-      // Add current person info to the chain
-      ancestorChain.push({ name: person.name, id: person._id });
+      // Add current person info (including gender) to the chain
+      ancestorChain.push({ 
+        name: person.name, 
+        id: person._id,
+        gender: person.gender // Assuming the 'gender' field exists in your Person model
+      });
       return ancestorChain;
     };
 
@@ -1147,17 +1151,18 @@ const getAncestorChain = async (req, res) => {
       return false;
     });
 
-    // Get the names and IDs of the children
+    // Get the names and IDs of the children, including their gender
     const childrenInfo = person.children.map((child) => ({
       name: child.name,
       id: child._id,
+      gender: child.gender // Assuming the 'gender' field exists in your Child model
     }));
 
     // Combine all data into a structured response
     const fullChain = {
       fatherSide: uniqueFatherSide,
       motherSide: uniqueMotherSide,
-      currentPerson: { name: person.name, id: person._id },
+      currentPerson: { name: person.name, id: person._id, gender: person.gender }, // Include gender of the current person
       children: childrenInfo,
     };
 
@@ -2463,6 +2468,71 @@ const openSearch = async (req, res) => {
   }
 };
 
+
+const adminGetFamilyTreeById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Fetch the specific person by ID and populate relationships
+    const person = await Person.findById(id).populate(
+      "spouseIds father mother children"
+    );
+
+    if (!person) {
+      return res.status(404).json({ message: "Person not found" });
+    }
+
+    // Helper function to format a member, excluding spouseIds and childrenIds for children
+    const formatMember = (member, isChild = false) => ({
+      _id: member._id,
+      name: member.name,
+      gender: member.gender,
+      dateOfBirth: member.dateOfBirth,
+      father: member.father ? member.father._id : null,
+      mother: member.mother ? member.mother._id : null,
+      spouseIds: isChild
+        ? undefined
+        : member.spouseIds
+        ? member.spouseIds.map((spouse) => spouse._id)
+        : [],
+      childrenIds: isChild
+        ? undefined
+        : member.children
+        ? member.children.map((child) => child._id)
+        : [],
+    });
+
+    // Format the specific person
+    const familyTree = [formatMember(person)];
+
+    // Add the related family members (father, mother, spouse, children)
+    if (person.father) familyTree.push(formatMember(person.father));
+    if (person.mother) familyTree.push(formatMember(person.mother));
+    if (person.spouseIds) {
+      person.spouseIds.forEach((spouse) =>
+        familyTree.push(formatMember(spouse))
+      );
+    }
+    if (person.children) {
+      person.children.forEach((child) =>
+        familyTree.push(formatMember(child, true))
+      );
+    }
+
+    const uniqueFamilyTree = familyTree.filter(
+      (person, index, self) =>
+        index ===
+        self.findIndex((p) => p._id.toString() === person._id.toString())
+    );
+
+    // Return the formatted family tree data
+    res.json(uniqueFamilyTree);
+  } catch (error) {
+    console.error("Error fetching family tree:", error);
+    res.status(500).json({ message: "Error fetching family tree" });
+  }
+};
+
 module.exports = {
   getAllPersons,
   createPerson,
@@ -2491,4 +2561,5 @@ module.exports = {
   openSearch,
   updatedGetFamilyTreeById,
   getAncestorChain,
+  adminGetFamilyTreeById
 };

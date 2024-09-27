@@ -38,7 +38,7 @@ router.post("/makePublicFigure/:personId", familyController.makePublicFigure);
 
 router.get("/getAllPublicFigures", familyController.getAllPublicFigures);
 
-// router.get("/getTreeById/:id", familyController.getFamilyTreeById);
+router.get("/adminGetTreeById/:id", familyController.adminGetFamilyTreeById);
 router.get("/getTreeById/:id", familyController.updatedGetFamilyTreeById);
 
 router.get("/searchbyname/:name", familyController.searchPersonByName);

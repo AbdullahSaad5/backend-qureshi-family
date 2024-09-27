@@ -995,24 +995,123 @@ const updatedGetFamilyTreeById = async (req, res) => {
   }
 };
 
+// const getAncestorChain = async (req, res) => {
+//   try {
+//     const personId = req.params.id;
+
+//     // Helper function to recursively fetch the ancestor chain
+//     const fetchAncestors = async (personId) => {
+//       const person = await Person.findById(personId).populate("father");
+//       if (!person) return "";
+
+//       // Recursively fetch father's ancestors
+//       const ancestorChain = person.father
+//         ? await fetchAncestors(person.father._id)
+//         : "";
+
+//       // Add current person name to the chain
+//       return ancestorChain
+//         ? `${ancestorChain} > ${person.name}`
+//         : `${person.name}`;
+//     };
+
+//     // Fetch the person from the database
+//     const person = await Person.findById(personId).populate("children");
+
+//     // Handle case where person is not found
+//     if (!person) {
+//       return res.status(404).json({ message: "Person not found" });
+//     }
+
+//     // Get the ancestor chain (father, grandfather, etc.)
+//     const ancestorChain = await fetchAncestors(personId);
+
+//     // Get the names of the children
+//     const childrenNames = person.children
+//       .map((child) => child.name)
+//       .join(" > ");
+
+//     // Combine ancestor chain, person name, and children names
+//     const fullChain = childrenNames
+//       ? `${ancestorChain} > ${person.name} > ${childrenNames}`
+//       : `${ancestorChain} > ${person.name}`;
+
+//     // Send the response with the full ancestor and children chain
+//     return res.status(200).json({ ancestorChain: fullChain });
+//   } catch (error) {
+//     console.error("Error fetching deep family tree:", error);
+//     res.status(500).json({ message: "Internal server error" });
+//   }
+// };
+
+
+
+
+// const getAncestorChain = async (req, res) => {
+//   try {
+//     const personId = req.params.id;
+
+//     // Helper function to recursively fetch the ancestor chain
+//     const fetchAncestors = async (personId) => {
+//       const person = await Person.findById(personId).populate("father");
+//       if (!person) return [];
+
+//       // Recursively fetch father's ancestors
+//       const ancestorChain = person.father
+//         ? await fetchAncestors(person.father._id)
+//         : [];
+
+//       // Add current person info to the chain
+//       ancestorChain.push({ name: person.name, id: person._id });
+//       return ancestorChain;
+//     };
+
+//     // Fetch the person from the database
+//     const person = await Person.findById(personId).populate("children");
+
+//     // Handle case where person is not found
+//     if (!person) {
+//       return res.status(404).json({ message: "Person not found" });
+//     }
+
+//     // Get the ancestor chain (father, grandfather, etc.)
+//     const ancestorChain = await fetchAncestors(personId);
+
+//     // Get the names and IDs of the children
+//     const childrenInfo = person.children.map((child) => ({
+//       name: child.name,
+//       id: child._id,
+//     }));
+
+//     // Combine ancestor chain, person info, and children info
+//     const fullChain = [...ancestorChain, { name: person.name, id: person._id }, ...childrenInfo];
+
+//     // Send the response with the full ancestor and children chain
+//     return res.status(200).json({ ancestorChain: fullChain });
+//   } catch (error) {
+//     console.error("Error fetching deep family tree:", error);
+//     res.status(500).json({ message: "Internal server error" });
+//   }
+// };
+
 const getAncestorChain = async (req, res) => {
   try {
     const personId = req.params.id;
 
     // Helper function to recursively fetch the ancestor chain
-    const fetchAncestors = async (personId) => {
-      const person = await Person.findById(personId).populate("father");
-      if (!person) return "";
+    const fetchAncestors = async (personId, side) => {
+      const person = await Person.findById(personId).populate(side);
+      if (!person) return [];
 
-      // Recursively fetch father's ancestors
-      const ancestorChain = person.father
-        ? await fetchAncestors(person.father._id)
-        : "";
+      // Determine which parent to fetch ancestors from based on the side
+      const parentId = side === 'father' ? person.father : person.mother;
 
-      // Add current person name to the chain
-      return ancestorChain
-        ? `${ancestorChain} > ${person.name}`
-        : `${person.name}`;
+      // Recursively fetch ancestors of the parent if they exist
+      const ancestorChain = parentId ? await fetchAncestors(parentId, side) : [];
+
+      // Add current person info to the chain
+      ancestorChain.push({ name: person.name, id: person._id });
+      return ancestorChain;
     };
 
     // Fetch the person from the database
@@ -1023,27 +1122,52 @@ const getAncestorChain = async (req, res) => {
       return res.status(404).json({ message: "Person not found" });
     }
 
-    // Get the ancestor chain (father, grandfather, etc.)
-    const ancestorChain = await fetchAncestors(personId);
+    // Get the complete ancestor chains for both father and mother sides
+    const fatherSideChain = await fetchAncestors(personId, 'father');
+    const motherSideChain = await fetchAncestors(personId, 'mother');
 
-    // Get the names of the children
-    const childrenNames = person.children
-      .map((child) => child.name)
-      .join(" > ");
+    // Create a Set to avoid duplicate IDs in the final response
+    const uniqueIds = new Set();
 
-    // Combine ancestor chain, person name, and children names
-    const fullChain = childrenNames
-      ? `${ancestorChain} > ${person.name} > ${childrenNames}`
-      : `${ancestorChain} > ${person.name}`;
+    // Filter out duplicates from father side
+    const uniqueFatherSide = fatherSideChain.filter(ancestor => {
+      if (!uniqueIds.has(ancestor.id)) {
+        uniqueIds.add(ancestor.id);
+        return true;
+      }
+      return false;
+    });
+
+    // Filter out duplicates from mother side
+    const uniqueMotherSide = motherSideChain.filter(ancestor => {
+      if (!uniqueIds.has(ancestor.id)) {
+        uniqueIds.add(ancestor.id);
+        return true;
+      }
+      return false;
+    });
+
+    // Get the names and IDs of the children
+    const childrenInfo = person.children.map((child) => ({
+      name: child.name,
+      id: child._id,
+    }));
+
+    // Combine all data into a structured response
+    const fullChain = {
+      fatherSide: uniqueFatherSide,
+      motherSide: uniqueMotherSide,
+      currentPerson: { name: person.name, id: person._id },
+      children: childrenInfo,
+    };
 
     // Send the response with the full ancestor and children chain
-    return res.status(200).json({ ancestorChain: fullChain });
+    return res.status(200).json({ ancestorChains: fullChain });
   } catch (error) {
     console.error("Error fetching deep family tree:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
-
 
 
 const addPerson = async (req, res) => {
